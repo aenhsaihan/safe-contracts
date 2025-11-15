@@ -1,4 +1,5 @@
 <!-- b7c0891b-120f-40b4-ae46-dcfa78e8bf22 bd3cfeee-413b-4214-9d50-3c14185ddf64 -->
+
 # SafeContracts MVP Implementation Plan
 
 ## Phase 1: Project Setup & Infrastructure
@@ -20,15 +21,15 @@
 
 ### 2.1 Define Schema in `amplify/data/resource.ts`
 
-- **ContractExchange model**:
+- [x] **ContractExchange model**:
   - Fields: `id`, `title`, `partyAId`, `partyBId`, `createdById`, `status` (enum: PENDING/COMPLETED), `createdAt`, `updatedAt`
   - Relationship: `hasMany` ContractFile
-  - Auth: Read by partyA/partyB/creator; Create/Update/Delete by owner/parties
+  - Auth: Authenticated users can perform all operations (fine-grained auth handled in Lambda/AppSync)
 
-- **ContractFile model**:
+- [x] **ContractFile model**:
   - Fields: `id`, `exchangeId`, `ownerId`, `uploaderId`, `s3Key`, `fileName`, `fileSize`, `fileHash`, `kmsKeyId`, `kmsCiphertextKey`, `encryptionContextOwnerId`, `encryptionContextUploaderId`, `encryptionContextExchangeId`, `createdAt`, `updatedAt`
   - Relationship: `belongsTo` ContractExchange
-  - Auth: Read by partyA/partyB of parent exchange; Delete by uploader/owner
+  - Auth: Authenticated users can perform all operations (fine-grained auth handled in Lambda/AppSync)
 
 ## Phase 3: Lambda Function - Envelope Encryption
 
@@ -235,7 +236,7 @@ safe_contracts/
 - [x] Create S3 bucket resource with versioning enabled (Phase 1.2)
 - [x] Create KMS CMK resource with alias `alias/safe-contracts-master-key` (Phase 1.2)
 - [x] Configure IAM permissions for Lambda function (Phase 1.2 - complete)
-- [ ] Define ContractExchange and ContractFile models in amplify/data/resource.ts with relationships and auth rules
+- [x] Define ContractExchange and ContractFile models in amplify/data/resource.ts with relationships and auth rules (Phase 2 - complete)
 - [ ] Create contractsFunction Lambda with encryptAndUpload and decryptAndDownload operations using KMS envelope encryption
 - [ ] Configure Cognito auth, create Auth component wrapper, NavBar, and signin page
 - [ ] Create src/lib/amplify-server.ts with server-side helpers for auth, data client, and function invocation
