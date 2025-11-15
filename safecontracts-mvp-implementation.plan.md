@@ -12,9 +12,9 @@
 
 ### 1.2 Amplify Backend Resources
 
-- Create S3 bucket resource in `amplify/storage/resource.ts` with versioning enabled
-- Create KMS CMK with alias `alias/safe-contracts-master-key` in `amplify/backend/kms/resource.ts` (or via CDK)
-- Configure IAM permissions for Lambda function to access KMS and S3
+- [x] Create S3 bucket resource in `amplify/storage/resource.ts` with versioning enabled
+- [ ] Create KMS CMK with alias `alias/safe-contracts-master-key` in `amplify/backend/kms/resource.ts` (or via CDK)
+- [ ] Configure IAM permissions for Lambda function to access KMS and S3
 
 ## Phase 2: Data Models (Amplify Gen 2 Schema)
 
@@ -232,7 +232,9 @@ safe_contracts/
 ### To-dos
 
 - [x] Initialize Next.js 14 project with TypeScript, Tailwind, App Router, and install Amplify dependencies
-- [ ] Initialize Amplify Gen 2, create S3 bucket and KMS CMK resources with proper IAM permissions
+- [x] Create S3 bucket resource with versioning enabled (Phase 1.2 - partial)
+- [ ] Create KMS CMK resource with alias (Phase 1.2 - remaining)
+- [ ] Configure IAM permissions for Lambda function (Phase 1.2 - remaining)
 - [ ] Define ContractExchange and ContractFile models in amplify/data/resource.ts with relationships and auth rules
 - [ ] Create contractsFunction Lambda with encryptAndUpload and decryptAndDownload operations using KMS envelope encryption
 - [ ] Configure Cognito auth, create Auth component wrapper, NavBar, and signin page
