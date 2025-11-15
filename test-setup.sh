@@ -1,0 +1,17 @@
+#!/bin/bash
+echo "=== Testing SafeContracts Setup ==="
+echo ""
+echo "1. Checking project structure..."
+ls -la amplify/ && echo "✓ Amplify folder exists"
+ls -la src/app/ && echo "✓ Next.js app structure exists"
+echo ""
+echo "2. Checking dependencies..."
+npm list aws-amplify @aws-amplify/ui-react @aws-amplify/adapter-nextjs @aws-sdk/client-kms @aws-sdk/client-s3 2>/dev/null | grep -E "(aws-amplify|@aws-sdk)" && echo "✓ Dependencies installed"
+echo ""
+echo "3. Checking TypeScript compilation..."
+npx tsc --noEmit && echo "✓ TypeScript compiles successfully"
+echo ""
+echo "4. Starting dev server (will run for 10 seconds)..."
+timeout 10 npm run dev 2>&1 | head -20 || true
+echo ""
+echo "=== Test Complete ==="
