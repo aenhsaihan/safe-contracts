@@ -50,9 +50,6 @@ export default function ExchangeDetail({ exchange, files, currentUserId }: Excha
     }
   }, [exchange.status]);
 
-  const viewerIsPartyA = exchange.partyAId === currentUserId;
-  const counterpartyId = viewerIsPartyA ? exchange.partyBId : exchange.partyAId;
-
   const handleDownload = async (fileId: string) => {
     const file = files.find((entry) => entry.id === fileId);
     if (!file) {
@@ -101,7 +98,14 @@ export default function ExchangeDetail({ exchange, files, currentUserId }: Excha
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[320px,1fr]">
-        <UploadForm exchangeId={exchange.id} currentUserId={currentUserId} counterpartyId={counterpartyId} />
+        <UploadForm
+          exchangeId={exchange.id}
+          currentUserId={currentUserId}
+          partyAId={exchange.partyAId}
+          partyBId={exchange.partyBId}
+          partyALabel={exchange.partyA}
+          partyBLabel={exchange.partyB}
+        />
 
         <div className="rounded-2xl border border-zinc-100 bg-white p-4 shadow-inner">
           <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
