@@ -95,6 +95,14 @@ const CREATE_CONTRACT_EXCHANGE = /* GraphQL */ `
   }
 `;
 
+const UPDATE_CONTRACT_EXCHANGE_STATUS = /* GraphQL */ `
+  mutation UpdateContractExchangeStatus($input: UpdateContractExchangeInput!) {
+    updateContractExchange(input: $input) {
+      ${CONTRACT_EXCHANGE_FIELDS}
+    }
+  }
+`;
+
 export async function listContractExchangesForUser(userId: string): Promise<ContractExchangeRecord[]> {
   const data = await executeGraphQL<{
     listContractExchanges?: {
@@ -159,6 +167,23 @@ export async function createContractExchangeRecord(input: {
   return data.createContractExchange;
 }
 
+export async function updateContractExchangeStatus(input: {
+  id: string;
+  status: "PENDING" | "COMPLETED" | "ACTION_REQUIRED";
+}): Promise<ContractExchangeRecord> {
+  const data = await executeGraphQL<{
+    updateContractExchange?: ContractExchangeRecord | null;
+  }>(UPDATE_CONTRACT_EXCHANGE_STATUS, {
+    input,
+  });
+
+  if (!data.updateContractExchange) {
+    throw new Error("Exchange status update returned an empty response.");
+  }
+
+  return data.updateContractExchange;
+}
+
 async function executeGraphQL<T>(
   query: string,
   variables?: Record<string, unknown>
@@ -179,4 +204,3 @@ async function executeGraphQL<T>(
 
   return result.data;
 }
-
