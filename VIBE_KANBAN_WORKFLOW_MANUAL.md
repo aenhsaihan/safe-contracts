@@ -215,17 +215,29 @@ After starting, immediately check:
 #### 3. Monitor Task Progress
 
 - **DO NOT** work on the task directly
-- Wait for user notification (Vibe Kanban "moo" sound indicates completion)
-- **Use MCP commands for status checks:**
+- **MCP Communication Model:**
+  - MCP is **request-response only** (we query, kanban responds)
+  - Kanban **cannot proactively notify** us via MCP
+  - We must **poll/check** kanban status using MCP commands
+  - The "moo" sound is a **UI feature**, not MCP notification
+
+- **How to Monitor:**
   ```typescript
-  // Check specific task status
+  // Option 1: Poll specific task status
   mcp_vibe-kanban_get_task(task_id)
+  // Check if status changed from "in-progress" to "in-review"
   
-  // List all tasks by status
+  // Option 2: List tasks by status (more efficient for multiple tasks)
   mcp_vibe-kanban_list_tasks(project_id, status: "in-review")
   mcp_vibe-kanban_list_tasks(project_id, status: "in-progress")
   ```
-- Status will change from `in-progress` → `in-review` when done
+
+- **Monitoring Strategy:**
+  - **User notification:** Wait for "moo" sound (UI-level notification)
+  - **Or polling:** Periodically check task status via MCP
+  - Status will change from `in-progress` → `in-review` when done
+  - After user notifies us, verify status with MCP before reviewing
+
 - **Browser snapshots are only needed for:**
   - Verifying executor model (checking for "Auto" vs "CODEX" in UI)
   - Debugging executor issues
@@ -552,7 +564,13 @@ mcp_vibe-kanban_start_task_attempt(task2_id, "CODEX", "main")  // Use CODEX, not
 
 **Best Practice: Prefer MCP Commands Over Browser Snapshots**
 
-For routine status checks and monitoring:
+**Understanding MCP Communication:**
+- MCP is **request-response only** - we query, kanban responds
+- Kanban **cannot push notifications** via MCP
+- We must **poll/check** status using MCP commands
+- The "moo" sound is a **UI feature** (browser notification), not MCP
+
+**For routine status checks and monitoring:**
 - **Use MCP commands** - More efficient and programmatic
   ```typescript
   // Check task status
@@ -562,6 +580,17 @@ For routine status checks and monitoring:
   mcp_vibe-kanban_list_tasks(project_id, status: "in-review")
   mcp_vibe-kanban_list_tasks(project_id, status: "in-progress")
   ```
+
+**Monitoring Approaches:**
+1. **User Notification (Recommended):**
+   - Wait for user to notify when "moo" sound plays
+   - Then verify status with MCP before reviewing
+   - Most efficient - no polling needed
+
+2. **Polling (Alternative):**
+   - Periodically check task status via MCP
+   - Useful when user is not available to notify
+   - Less efficient but works autonomously
 
 **When to Use Browser Snapshots:**
 - Verifying executor model in UI (checking for "Auto" vs "CODEX")
@@ -574,13 +603,21 @@ For routine status checks and monitoring:
 - Browser snapshots are slower and require navigation
 - MCP provides structured data, easier to parse
 - Reduces unnecessary browser automation overhead
+- **No push notifications** - must poll or wait for user notification
 
 **Example Workflow:**
 ```typescript
-// ✅ Good: Use MCP for status check
+// ✅ Good: Use MCP for status check (after user notification)
+// User: "Task is done" (heard "moo" sound)
 const task = mcp_vibe-kanban_get_task(task_id);
 if (task.status === "in-review") {
   // Review the task
+}
+
+// ✅ Alternative: Polling approach
+const tasks = mcp_vibe-kanban_list_tasks(project_id, status: "in-review");
+if (tasks.count > 0) {
+  // Review tasks
 }
 
 // ⚠️ Only use browser snapshot when needed
