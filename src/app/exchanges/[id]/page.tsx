@@ -42,7 +42,7 @@ export default async function ExchangeDetailPage({
       partyAId: exchange.partyAId,
       partyB: `Party B (${exchange.partyBId})`,
       partyBId: exchange.partyBId,
-      status: resolveExchangeStatus(exchange.status),
+      status: resolveExchangeStatus(exchange.status, files.length > 0),
       createdAt: exchange.createdAt ?? new Date().toISOString(),
     },
     files: files.map((file) => ({
@@ -74,10 +74,14 @@ export default async function ExchangeDetailPage({
 }
 
 function resolveExchangeStatus(
-  status?: string | null
+  status: string | null | undefined,
+  hasFiles: boolean
 ): "PENDING" | "COMPLETED" | "ACTION_REQUIRED" {
-  if (status === "COMPLETED" || status === "ACTION_REQUIRED") {
+  if (status === "ACTION_REQUIRED") {
     return status;
+  }
+  if (hasFiles) {
+    return "COMPLETED";
   }
   return "PENDING";
 }
