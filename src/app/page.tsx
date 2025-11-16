@@ -28,11 +28,15 @@ const mockExchanges = [
   },
 ];
 
+const currentUserId = "user-safe-contracts";
+
 const activeExchange = {
   id: "exc-01",
   title: "Series A Subscription Agreement",
   partyA: "Safe Contracts Inc.",
+  partyAId: currentUserId,
   partyB: "Atlas Ventures",
+  partyBId: "user-atlas-ventures",
   status: "ACTION_REQUIRED" as const,
   createdAt: "2024-05-30T10:00:00.000Z",
 };
@@ -89,7 +93,7 @@ export default function Home() {
 
         <ExchangeList exchanges={mockExchanges} />
 
-        <ExchangeDetail exchange={activeExchange} files={activeFiles} />
+        <ExchangeDetail exchange={activeExchange} files={activeFiles} currentUserId={currentUserId} />
       </main>
     </div>
   );

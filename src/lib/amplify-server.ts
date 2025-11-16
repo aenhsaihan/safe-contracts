@@ -2,37 +2,10 @@ import { createServerRunner, type NextServer } from "@aws-amplify/adapter-nextjs
 import type { AmplifyServer } from "aws-amplify/adapter-core/internals";
 import { getCurrentUser, fetchAuthSession } from "aws-amplify/auth/server";
 import { generateClient } from "aws-amplify/data";
-import type { AWSAmplifyBackendOutputs } from "@aws-amplify/client-config";
 import { cookies } from "next/headers";
 
 import type { Schema } from "../../amplify/data/resource";
-import amplifyOutputsJson from "../../amplify_outputs.json";
-
-/**
- * Narrow the generated outputs with custom function fields so TypeScript can
- * infer the location of the contracts function URL regardless of where it is stored.
- */
-type ContractsAmplifyOutputs = AWSAmplifyBackendOutputs & {
-  functions?: {
-    contractsFunction?: {
-      /**
-       * Amplify does not currently emit a strongly-typed shape for functions, so we
-       * look for a reasonable set of property names.
-       */
-      functionUrl?: string;
-      url?: string;
-      endpoint?: string;
-      name?: string;
-      region?: string;
-    };
-  };
-  custom?: {
-    contractsFunctionUrl?: string;
-    [key: string]: unknown;
-  };
-};
-
-const amplifyOutputs = amplifyOutputsJson as ContractsAmplifyOutputs;
+import { amplifyOutputs, resolveContractsFunctionUrl } from "./contracts-config";
 
 const {
   runWithAmplifyServerContext: runWithAmplifyServerContextBase,
@@ -109,25 +82,6 @@ export type ContractsFunctionOperationMap = {
 };
 
 type ContractsFunctionOperation = keyof ContractsFunctionOperationMap;
-
-function resolveContractsFunctionUrl() {
-  const fromEnv = process.env.CONTRACTS_FUNCTION_URL;
-  const fromCustom = amplifyOutputs.custom?.contractsFunctionUrl;
-  const fromFunctions =
-    amplifyOutputs.functions?.contractsFunction?.functionUrl ??
-    amplifyOutputs.functions?.contractsFunction?.url ??
-    amplifyOutputs.functions?.contractsFunction?.endpoint;
-
-  const url = fromEnv ?? fromCustom ?? fromFunctions;
-
-  if (!url) {
-    throw new Error(
-      "Unable to resolve contracts function URL. Provide CONTRACTS_FUNCTION_URL or add it to amplify_outputs.json."
-    );
-  }
-
-  return url;
-}
 
 /**
  * Invokes the `contractsFunction` Lambda with strong typing around its operations.

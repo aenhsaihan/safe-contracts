@@ -8,7 +8,9 @@ type ExchangeMetadata = {
   id: string;
   title: string;
   partyA: string;
+  partyAId: string;
   partyB: string;
+  partyBId: string;
   status: "PENDING" | "COMPLETED" | "ACTION_REQUIRED";
   createdAt: string;
 };
@@ -29,10 +31,10 @@ type DownloadState = "idle" | "verifying" | "verified" | "failed";
 interface ExchangeDetailProps {
   exchange: ExchangeMetadata;
   files: FileRecord[];
+  currentUserId: string;
 }
 
-export default function ExchangeDetail({ exchange, files }: ExchangeDetailProps) {
-  const [records, setRecords] = useState<FileRecord[]>(files);
+export default function ExchangeDetail({ exchange, files, currentUserId }: ExchangeDetailProps) {
   const [downloadStates, setDownloadStates] = useState<Record<string, DownloadState>>({});
 
   const statusCopy = useMemo(() => {
@@ -46,35 +48,11 @@ export default function ExchangeDetail({ exchange, files }: ExchangeDetailProps)
     }
   }, [exchange.status]);
 
-  const handleUpload = async ({
-    owner,
-    file,
-  }: {
-    owner: "MY_COPY" | "THEIR_COPY";
-    file: File;
-  }) => {
-    const buffer = await file.arrayBuffer();
-    const base64 = arrayBufferToBase64(buffer);
-    const hashHex = await sha256Hex(buffer);
-
-    const newFile: FileRecord = {
-      id: createDeterministicId(),
-      fileName: file.name || "unnamed-file",
-      fileSize: file.size,
-      owner: owner === "MY_COPY" ? "My copy" : "Counterparty copy",
-      uploader: "You",
-      uploadedAt: new Date().toISOString(),
-      sha256: hashHex,
-      base64,
-    };
-
-    setRecords((prev) => [newFile, ...prev]);
-
-    return { hashHex };
-  };
+  const viewerIsPartyA = exchange.partyAId === currentUserId;
+  const counterpartyId = viewerIsPartyA ? exchange.partyBId : exchange.partyAId;
 
   const handleDownload = async (fileId: string) => {
-    const file = records.find((entry) => entry.id === fileId);
+    const file = files.find((entry) => entry.id === fileId);
     if (!file?.base64) {
       setDownloadStates((prev) => ({ ...prev, [fileId]: "failed" }));
       return;
@@ -117,15 +95,15 @@ export default function ExchangeDetail({ exchange, files }: ExchangeDetailProps)
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[320px,1fr]">
-        <UploadForm onUpload={handleUpload} />
+        <UploadForm exchangeId={exchange.id} currentUserId={currentUserId} counterpartyId={counterpartyId} />
 
         <div className="rounded-2xl border border-zinc-100 bg-white p-4 shadow-inner">
           <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
             <p className="text-sm font-semibold text-zinc-600">Encrypted files</p>
-            <p className="text-xs text-zinc-400">{records.length} stored</p>
+            <p className="text-xs text-zinc-400">{files.length} stored</p>
           </div>
           <div className="divide-y divide-zinc-100">
-            {records.map((file) => {
+            {files.map((file) => {
               const hashSnippet = `${file.sha256.slice(0, 8)}...${file.sha256.slice(-4)}`;
               const status = downloadStates[file.id] ?? "idle";
 
@@ -167,7 +145,7 @@ export default function ExchangeDetail({ exchange, files }: ExchangeDetailProps)
                 </article>
               );
             })}
-            {records.length === 0 && (
+            {files.length === 0 && (
               <p className="py-10 text-center text-sm text-zinc-500">
                 No files stored yet. Upload your signed copy to start the audit trail.
               </p>
@@ -207,17 +185,6 @@ const sha256Hex = async (buffer: ArrayBuffer) => {
     .join("");
 };
 
-const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
-  let binary = "";
-  const bytes = new Uint8Array(buffer);
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode(...chunk);
-  }
-  return btoa(binary);
-};
-
 const base64ToArrayBuffer = (base64: string) => {
   const binaryString = atob(base64);
   const length = binaryString.length;
@@ -240,11 +207,4 @@ const triggerBrowserDownload = (fileName: string, buffer: ArrayBuffer) => {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-};
-
-const createDeterministicId = () => {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  return `file-${Date.now()}`;
 };

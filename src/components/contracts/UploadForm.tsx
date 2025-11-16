@@ -1,16 +1,24 @@
 "use client";
 
 import { FormEvent, useMemo, useRef, useState } from "react";
+import { fetchAuthSession } from "aws-amplify/auth";
+import { useRouter } from "next/navigation";
+
+import { ensureAmplifyConfigured } from "@/lib/amplify-client";
+import { resolveContractsFunctionUrl } from "@/lib/contracts-config";
 
 type OwnerSelection = "MY_COPY" | "THEIR_COPY";
 
 interface UploadFormProps {
-  onUpload: (input: { file: File; owner: OwnerSelection }) => Promise<{
-    hashHex: string;
-  }>;
+  exchangeId: string;
+  currentUserId: string;
+  counterpartyId: string;
 }
 
-export default function UploadForm({ onUpload }: UploadFormProps) {
+ensureAmplifyConfigured();
+
+export default function UploadForm({ exchangeId, currentUserId, counterpartyId }: UploadFormProps) {
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedOwner, setSelectedOwner] = useState<OwnerSelection>("MY_COPY");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -27,8 +35,15 @@ export default function UploadForm({ onUpload }: UploadFormProps) {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     if (!selectedFile) {
       setError("Select a file before uploading.");
+      return;
+    }
+
+    const ownerId = selectedOwner === "MY_COPY" ? currentUserId : counterpartyId;
+    if (!ownerId) {
+      setError("Unable to determine file ownership for this upload.");
       return;
     }
 
@@ -37,19 +52,57 @@ export default function UploadForm({ onUpload }: UploadFormProps) {
     setHashHex(null);
 
     try {
-      const result = await onUpload({
-        file: selectedFile,
-        owner: selectedOwner,
+      const fileBase64 = await fileToBase64(selectedFile);
+      const contractsFunctionUrl = resolveContractsFunctionUrl();
+
+      const { tokens } = await fetchAuthSession();
+      const authorization = tokens?.idToken?.toString() ?? tokens?.accessToken?.toString();
+
+      const response = await fetch(contractsFunctionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authorization ? { Authorization: authorization } : {}),
+        },
+        body: JSON.stringify({
+          operation: "encryptAndUpload",
+          payload: {
+            exchangeId,
+            ownerId,
+            uploaderId: currentUserId,
+            fileName: selectedFile.name || "unnamed-file",
+            fileSize: selectedFile.size,
+            fileBase64,
+          },
+        }),
       });
-      setHashHex(result.hashHex);
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Upload failed with ${response.status} ${response.statusText}: ${errorBody}`);
+      }
+
+      const json = (await response.json()) as {
+        result?: { fileHash: string };
+        error?: string;
+      };
+
+      if (json.error) {
+        throw new Error(json.error);
+      }
+
+      if (!json.result) {
+        throw new Error("contractsFunction response missing result payload.");
+      }
+
+      setHashHex(json.result.fileHash);
       setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
+      router.refresh();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Upload failed. Try again shortly.",
-      );
+      setError(err instanceof Error ? err.message : "Upload failed. Try again shortly.");
     } finally {
       setIsSubmitting(false);
     }
@@ -83,9 +136,7 @@ export default function UploadForm({ onUpload }: UploadFormProps) {
       </label>
 
       <fieldset className="rounded-lg border border-zinc-200 p-3">
-        <legend className="px-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Ownership
-        </legend>
+        <legend className="px-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Ownership</legend>
         <div className="grid gap-2 sm:grid-cols-2">
           <label className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700">
             <input
@@ -123,11 +174,23 @@ export default function UploadForm({ onUpload }: UploadFormProps) {
       {hashSnippet && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
           <p className="font-semibold">File stored with KMS envelope encryption</p>
-          <p className="mt-1 font-mono text-xs tracking-wide">
-            SHA-256: {hashSnippet}
-          </p>
+          <p className="mt-1 font-mono text-xs tracking-wide">SHA-256: {hashSnippet}</p>
         </div>
       )}
     </form>
   );
+}
+
+async function fileToBase64(file: File) {
+  const buffer = await file.arrayBuffer();
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary);
 }
