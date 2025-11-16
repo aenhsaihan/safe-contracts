@@ -12,6 +12,8 @@ This manual documents the established workflow for using Vibe Kanban MCP with Cu
 ## Table of Contents
 
 1. [Initial Setup & Connection](#initial-setup--connection)
+   - [MCP Configuration](#mcp-configuration)
+   - [Handling Port Changes](#handling-port-changes)
 2. [Initial Issues & Solutions](#initial-issues--solutions)
 3. [Finalized Workflow](#finalized-workflow)
    - [Planning Phase](#0-planning-phase-optional-but-recommended)
@@ -40,15 +42,101 @@ Vibe Kanban MCP server configuration in Cursor settings:
   "mcp_servers": {
     "vibe_kanban": {
       "command": "npx",
-      "args": ["-y", "vibe-kanban@latest", "--mcp"]
+      "args": ["-y", "vibe-kanban@latest", "--mcp"],
+      "env": {
+        "VIBE_KANBAN_URL": "http://127.0.0.1:63894"
+      }
     }
   }
 }
 ```
 
+**Note:** Update the `VIBE_KANBAN_URL` environment variable if the server port changes. After updating Cursor settings, restart Cursor for the changes to take effect.
+
+### Handling Port Changes
+
+Vibe Kanban server may change ports when restarted. When this happens, you need to update the MCP configuration to reconnect.
+
+#### Detecting Port Changes
+
+**Symptoms:**
+- MCP functions fail with error: `Failed to connect to VK API`
+- Error details show: `error sending request for url (http://127.0.0.1:OLD_PORT/api/...)`
+- MCP commands return `{"success": false, "error": "Failed to connect to VK API"}`
+
+**How to Find the New Port:**
+1. Check the Vibe Kanban UI/browser - the URL will show the current port
+2. Or check the terminal where Vibe Kanban is running - it will display the port on startup
+3. The port is typically in the format: `http://127.0.0.1:PORT`
+
+#### Updating MCP Configuration
+
+1. **Open Cursor Settings:**
+   - Press `Cmd+,` (Mac) or `Ctrl+,` (Windows/Linux)
+   - Or go to `Cursor > Settings` (Mac) / `File > Preferences > Settings` (Windows/Linux)
+
+2. **Find MCP Servers Configuration:**
+   - Search for "MCP" or "mcp_servers" in settings
+   - Or navigate to the MCP servers configuration section
+
+3. **Update the Environment Variable:**
+   - Locate the `vibe_kanban` server configuration
+   - Update the `VIBE_KANBAN_URL` in the `env` section:
+   ```json
+   {
+     "mcp_servers": {
+       "vibe_kanban": {
+         "command": "npx",
+         "args": ["-y", "vibe-kanban@latest", "--mcp"],
+         "env": {
+           "VIBE_KANBAN_URL": "http://127.0.0.1:NEW_PORT"
+         }
+       }
+     }
+   }
+   ```
+   - Replace `NEW_PORT` with the actual port number (e.g., `63894`)
+
+4. **Restart Cursor:**
+   - **Important:** You must restart Cursor completely for MCP configuration changes to take effect
+   - Close all Cursor windows and reopen
+   - Or use `Cmd+Q` (Mac) / `Alt+F4` (Windows) to fully quit, then restart
+
+#### Verifying the Connection
+
+After updating and restarting, verify the connection works:
+
+1. **Test with curl (Terminal):**
+   ```bash
+   curl http://127.0.0.1:NEW_PORT/api/projects
+   ```
+   - Should return JSON with `{"success": true, "data": [...]}`
+   - If this fails, the server isn't running or the port is wrong
+
+2. **Test with MCP Function:**
+   - Try listing projects: `mcp_vibe-kanban_list_projects`
+   - Should return `{"success": true, "data": [...]}`
+   - If it still fails, check:
+     - Did you restart Cursor completely?
+     - Is the port number correct?
+     - Is the server actually running on that port?
+
+3. **Update Documentation:**
+   - Update this manual's port reference in the "Verification" section below
+   - Update any other documentation that references the port
+
+#### Quick Reference: Port Change Checklist
+
+- [ ] Identify new port from Vibe Kanban UI or terminal
+- [ ] Update `VIBE_KANBAN_URL` in Cursor MCP settings
+- [ ] Restart Cursor completely
+- [ ] Test connection with `curl http://127.0.0.1:NEW_PORT/api/projects`
+- [ ] Test MCP function: `mcp_vibe-kanban_list_projects`
+- [ ] Update documentation with new port
+
 ### Verification
 
-- Vibe Kanban runs at: `http://127.0.0.1:49739`
+- Vibe Kanban runs at: `http://127.0.0.1:63894` (⚠️ Port may change - check Vibe Kanban UI)
 - MCP functions available:
   - `mcp_vibe-kanban_list_projects`
   - `mcp_vibe-kanban_list_tasks`
@@ -810,6 +898,71 @@ After merging, update `safecontracts-mvp-implementation.plan.md` to reflect comp
 ---
 
 ## Troubleshooting
+
+### Issue: MCP Connection Failed - Port Changed
+
+**Problem:** MCP functions fail with connection errors after Vibe Kanban server restarts.
+
+**Symptoms:**
+- Error: `Failed to connect to VK API`
+- Error details: `error sending request for url (http://127.0.0.1:OLD_PORT/api/...)`
+- All MCP functions return `{"success": false, "error": "Failed to connect to VK API"}`
+- MCP commands that worked before suddenly stop working
+
+**Root Cause:**
+- Vibe Kanban server changed ports when restarted
+- MCP configuration still points to old port
+- Cursor hasn't been restarted after configuration change
+
+**Solution:**
+
+1. **Find the New Port:**
+   - Check Vibe Kanban browser UI - URL shows current port
+   - Or check terminal where Vibe Kanban is running
+   - Example: `http://127.0.0.1:63894` → port is `63894`
+
+2. **Verify Server is Running:**
+   ```bash
+   curl http://127.0.0.1:NEW_PORT/api/projects
+   ```
+   - Should return JSON response
+   - If this fails, server isn't running or port is wrong
+
+3. **Update Cursor MCP Settings:**
+   - Open Cursor Settings (`Cmd+,` or `Ctrl+,`)
+   - Find MCP servers configuration
+   - Update `VIBE_KANBAN_URL` in `env` section:
+   ```json
+   "env": {
+     "VIBE_KANBAN_URL": "http://127.0.0.1:NEW_PORT"
+   }
+   ```
+
+4. **Restart Cursor:**
+   - **Critical:** Must fully restart Cursor (not just reload window)
+   - Close all windows and reopen
+   - Or quit completely (`Cmd+Q` / `Alt+F4`) and restart
+
+5. **Verify Connection:**
+   ```typescript
+   mcp_vibe-kanban_list_projects()
+   ```
+   - Should return `{"success": true, "data": [...]}`
+   - If still failing, double-check port and restart again
+
+**Prevention:**
+- Check Vibe Kanban port before starting work session
+- Keep documentation updated with current port
+- Note port changes in workflow documentation
+
+**Example (December 2025):**
+- Port changed from `49739` to `63894`
+- MCP functions started failing
+- Updated `VIBE_KANBAN_URL` to `http://127.0.0.1:63894`
+- Restarted Cursor
+- Connection restored ✅
+
+---
 
 ### Issue: Kanban Status Doesn't Persist
 
