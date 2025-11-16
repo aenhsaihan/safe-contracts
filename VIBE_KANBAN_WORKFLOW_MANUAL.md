@@ -330,37 +330,55 @@ mcp_vibe-kanban_update_task(task_id, status: "done")
 
 **⚠️ CRITICAL WARNING:**
 - **Frequently defaults to "Auto"** - even when explicitly specified in `start_task_attempt`
-- **Multiple occurrences:** This has happened repeatedly (Task 2, Auth component, server utilities)
+- **Multiple occurrences:** This has happened repeatedly:
+  - Task 2: "Create Auth component wrapper" (defaulted to "Auto")
+  - Task 2: "Create server-side Amplify utilities" (defaulted to "Auto" in parallel execution)
+  - Multiple other attempts
 - **If "Auto" appears:** Stop immediately and restart with CODEX
 - **Verification required:** Check UI within 5-10 seconds to confirm it's not using "Auto"
-- **Recommendation:** Consider using CODEX by default, or only use CURSOR_AGENT if you can verify it's working correctly
+- **Recommendation:** **Use CODEX by default** - CURSOR_AGENT is unreliable
 
 **Known Issue:**
 - The `executor: "CURSOR_AGENT"` parameter in `start_task_attempt` may be ignored by Vibe Kanban
 - This appears to be a systemic issue, not just a one-time bug
 - CODEX consistently works when specified, CURSOR_AGENT does not
+- **Occurs in both sequential and parallel execution** - not limited to specific scenarios
 
 ### Executor Selection Decision Tree
 
 ```
 Start Task
     ↓
-Choose Executor Based on Task Type
+Choose Executor
     ↓
-    ├─→ CURSOR_AGENT (for full features)
+    ├─→ CODEX (RECOMMENDED - Default Choice)
     │       ↓
     │   Verify in UI (5-10 seconds)
     │       ↓
-    │   ├─→ "Auto" detected? → STOP → Restart with CODEX
-    │   └─→ Working correctly? → Continue
+    │   ├─→ "Auto" detected? → STOP → Investigate (shouldn't happen with CODEX)
+    │   └─→ "gpt-5-codex" or "gpt-4-codex"? → Continue ✅
     │
-    └─→ CODEX (for code completion OR as fallback)
+    └─→ CURSOR_AGENT (Use with Caution - Known Issues)
             ↓
-        Verify in UI (5-10 seconds)
+        Verify in UI IMMEDIATELY (5-10 seconds)
             ↓
-        ├─→ "Auto" detected? → STOP → Investigate (shouldn't happen with CODEX)
-        └─→ "gpt-5-codex" or "gpt-4-codex"? → Continue ✅
+        ├─→ "Auto" detected? → STOP → Restart with CODEX
+        └─→ Working correctly? → Continue (but monitor closely)
 ```
+
+**Updated Recommendation (November 16, 2025):**
+- **Default to CODEX** for all tasks unless there's a specific reason to use CURSOR_AGENT
+- CODEX works reliably for:
+  - Code generation
+  - File creation
+  - Server utilities
+  - Test scripts
+  - Component creation
+  - Most coding tasks
+- **Only use CURSOR_AGENT** if:
+  - You absolutely need its specific capabilities
+  - You can verify immediately it's not using "Auto"
+  - You're prepared to restart with CODEX if it fails
 
 **Key Principle:** **Never execute with "Auto" - always verify and switch to CODEX if needed**
 
