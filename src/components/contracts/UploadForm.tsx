@@ -1,11 +1,9 @@
 "use client";
 
 import { FormEvent, useMemo, useRef, useState } from "react";
-import { fetchAuthSession } from "aws-amplify/auth";
 import { useRouter } from "next/navigation";
 
-import { ensureAmplifyConfigured } from "@/lib/amplify-client";
-import { resolveContractsFunctionUrl } from "@/lib/contracts-config";
+import { uploadExchangeFileAction } from "@/app/exchanges/[id]/actions";
 
 type OwnerSelection = "MY_COPY" | "THEIR_COPY";
 
@@ -14,8 +12,6 @@ interface UploadFormProps {
   currentUserId: string;
   counterpartyId: string;
 }
-
-ensureAmplifyConfigured();
 
 export default function UploadForm({ exchangeId, currentUserId, counterpartyId }: UploadFormProps) {
   const router = useRouter();
@@ -53,49 +49,17 @@ export default function UploadForm({ exchangeId, currentUserId, counterpartyId }
 
     try {
       const fileBase64 = await fileToBase64(selectedFile);
-      const contractsFunctionUrl = resolveContractsFunctionUrl();
 
-      const { tokens } = await fetchAuthSession();
-      const authorization = tokens?.idToken?.toString() ?? tokens?.accessToken?.toString();
-
-      const response = await fetch(contractsFunctionUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(authorization ? { Authorization: authorization } : {}),
-        },
-        body: JSON.stringify({
-          operation: "encryptAndUpload",
-          payload: {
-            exchangeId,
-            ownerId,
-            uploaderId: currentUserId,
-            fileName: selectedFile.name || "unnamed-file",
-            fileSize: selectedFile.size,
-            fileBase64,
-          },
-        }),
+      const result = await uploadExchangeFileAction({
+        exchangeId,
+        ownerId,
+        uploaderId: currentUserId,
+        fileName: selectedFile.name || "unnamed-file",
+        fileSize: selectedFile.size,
+        fileBase64,
       });
 
-      if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Upload failed with ${response.status} ${response.statusText}: ${errorBody}`);
-      }
-
-      const json = (await response.json()) as {
-        result?: { fileHash: string };
-        error?: string;
-      };
-
-      if (json.error) {
-        throw new Error(json.error);
-      }
-
-      if (!json.result) {
-        throw new Error("contractsFunction response missing result payload.");
-      }
-
-      setHashHex(json.result.fileHash);
+      setHashHex(result.fileHash);
       setSelectedFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";

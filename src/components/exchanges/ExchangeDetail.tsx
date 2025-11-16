@@ -1,11 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { fetchAuthSession } from "aws-amplify/auth";
 
 import UploadForm from "@/components/contracts/UploadForm";
-import { ensureAmplifyConfigured } from "@/lib/amplify-client";
-import { resolveContractsFunctionUrl } from "@/lib/contracts-config";
+import { downloadExchangeFileAction } from "@/app/exchanges/[id]/actions";
 
 type ExchangeMetadata = {
   id: string;
@@ -38,8 +36,6 @@ interface ExchangeDetailProps {
   currentUserId: string;
 }
 
-ensureAmplifyConfigured();
-
 export default function ExchangeDetail({ exchange, files, currentUserId }: ExchangeDetailProps) {
   const [downloadStates, setDownloadStates] = useState<Record<string, DownloadState>>({});
 
@@ -66,7 +62,7 @@ export default function ExchangeDetail({ exchange, files, currentUserId }: Excha
 
     setDownloadStates((prev) => ({ ...prev, [fileId]: "verifying" }));
     try {
-      const downloadPayload = await ensureFilePayload(file);
+      const downloadPayload = await ensureFilePayload(file, exchange.id);
       const buffer = base64ToArrayBuffer(downloadPayload.fileBase64);
       const hashHex = await sha256Hex(buffer);
 
@@ -196,7 +192,10 @@ type DecryptedFilePayload = {
   fileHash?: string;
 };
 
-const ensureFilePayload = async (file: FileRecord): Promise<DecryptedFilePayload> => {
+const ensureFilePayload = async (
+  file: FileRecord,
+  exchangeId: string
+): Promise<DecryptedFilePayload> => {
   if (file.base64) {
     return {
       fileBase64: file.base64,
@@ -205,45 +204,16 @@ const ensureFilePayload = async (file: FileRecord): Promise<DecryptedFilePayload
     };
   }
 
-  const contractsFunctionUrl = resolveContractsFunctionUrl();
-  const { tokens } = await fetchAuthSession();
-  const authorization = tokens?.idToken?.toString() ?? tokens?.accessToken?.toString();
-
-  const response = await fetch(contractsFunctionUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(authorization ? { Authorization: authorization } : {}),
-    },
-    body: JSON.stringify({
-      operation: "decryptAndDownload",
-      payload: {
-        fileId: file.id,
-      },
-    }),
+  const result = await downloadExchangeFileAction({
+    exchangeId,
+    fileId: file.id,
   });
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(
-      `Download failed with ${response.status} ${response.statusText}: ${errorBody}`
-    );
-  }
-
-  const json = (await response.json()) as {
-    result?: DecryptedFilePayload;
-    error?: string;
-  };
-
-  if (json.error) {
-    throw new Error(json.error);
-  }
-
-  if (!json.result?.fileBase64) {
+  if (!result.fileBase64) {
     throw new Error("contractsFunction response missing decrypted payload.");
   }
 
-  return json.result;
+  return result;
 };
 
 const sha256Hex = async (buffer: ArrayBuffer) => {
