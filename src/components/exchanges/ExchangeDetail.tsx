@@ -1,8 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { fetchAuthSession } from "aws-amplify/auth";
 
 import UploadForm from "@/components/contracts/UploadForm";
+import { ensureAmplifyConfigured } from "@/lib/amplify-client";
+import { resolveContractsFunctionUrl } from "@/lib/contracts-config";
 
 type ExchangeMetadata = {
   id: string;
@@ -22,7 +25,8 @@ type FileRecord = {
   owner: string;
   uploader: string;
   uploadedAt: string;
-  sha256: string;
+  sha256?: string;
+  fileHash?: string;
   base64?: string;
 };
 
@@ -33,6 +37,8 @@ interface ExchangeDetailProps {
   files: FileRecord[];
   currentUserId: string;
 }
+
+ensureAmplifyConfigured();
 
 export default function ExchangeDetail({ exchange, files, currentUserId }: ExchangeDetailProps) {
   const [downloadStates, setDownloadStates] = useState<Record<string, DownloadState>>({});
@@ -53,22 +59,26 @@ export default function ExchangeDetail({ exchange, files, currentUserId }: Excha
 
   const handleDownload = async (fileId: string) => {
     const file = files.find((entry) => entry.id === fileId);
-    if (!file?.base64) {
+    if (!file) {
       setDownloadStates((prev) => ({ ...prev, [fileId]: "failed" }));
       return;
     }
 
     setDownloadStates((prev) => ({ ...prev, [fileId]: "verifying" }));
     try {
-      const buffer = base64ToArrayBuffer(file.base64);
+      const downloadPayload = await ensureFilePayload(file);
+      const buffer = base64ToArrayBuffer(downloadPayload.fileBase64);
       const hashHex = await sha256Hex(buffer);
 
-      if (hashHex !== file.sha256) {
+      const expectedHash = file.sha256 ?? file.fileHash ?? downloadPayload.fileHash ?? null;
+
+      if (expectedHash && hashHex !== expectedHash) {
         setDownloadStates((prev) => ({ ...prev, [fileId]: "failed" }));
         return;
       }
 
-      triggerBrowserDownload(file.fileName, buffer);
+      const resolvedName = downloadPayload.fileName || file.fileName;
+      triggerBrowserDownload(resolvedName, buffer);
       setDownloadStates((prev) => ({ ...prev, [fileId]: "verified" }));
     } catch (error) {
       console.error("Integrity verification failed", error);
@@ -104,7 +114,8 @@ export default function ExchangeDetail({ exchange, files, currentUserId }: Excha
           </div>
           <div className="divide-y divide-zinc-100">
             {files.map((file) => {
-              const hashSnippet = `${file.sha256.slice(0, 8)}...${file.sha256.slice(-4)}`;
+              const hash = file.sha256 ?? file.fileHash ?? "";
+              const hashSnippet = hash ? `${hash.slice(0, 8)}...${hash.slice(-4)}` : "unavailable";
               const status = downloadStates[file.id] ?? "idle";
 
               return (
@@ -136,10 +147,11 @@ export default function ExchangeDetail({ exchange, files, currentUserId }: Excha
                   </div>
                   <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
                     <button
-                      className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-sky-600 hover:text-sky-700"
+                      className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-sky-600 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
                       onClick={() => handleDownload(file.id)}
+                      disabled={status === "verifying"}
                     >
-                      Download & verify
+                      {status === "verifying" ? "Decrypting..." : "Download & verify"}
                     </button>
                   </div>
                 </article>
@@ -176,6 +188,62 @@ const formatFileSize = (bytes: number) => {
   }
 
   return `${value.toFixed(1)} ${units[unitIndex]}`;
+};
+
+type DecryptedFilePayload = {
+  fileBase64: string;
+  fileName?: string;
+  fileHash?: string;
+};
+
+const ensureFilePayload = async (file: FileRecord): Promise<DecryptedFilePayload> => {
+  if (file.base64) {
+    return {
+      fileBase64: file.base64,
+      fileHash: file.sha256 ?? file.fileHash,
+      fileName: file.fileName,
+    };
+  }
+
+  const contractsFunctionUrl = resolveContractsFunctionUrl();
+  const { tokens } = await fetchAuthSession();
+  const authorization = tokens?.idToken?.toString() ?? tokens?.accessToken?.toString();
+
+  const response = await fetch(contractsFunctionUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(authorization ? { Authorization: authorization } : {}),
+    },
+    body: JSON.stringify({
+      operation: "decryptAndDownload",
+      payload: {
+        fileId: file.id,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(
+      `Download failed with ${response.status} ${response.statusText}: ${errorBody}`
+    );
+  }
+
+  const json = (await response.json()) as {
+    result?: DecryptedFilePayload;
+    error?: string;
+  };
+
+  if (json.error) {
+    throw new Error(json.error);
+  }
+
+  if (!json.result?.fileBase64) {
+    throw new Error("contractsFunction response missing decrypted payload.");
+  }
+
+  return json.result;
 };
 
 const sha256Hex = async (buffer: ArrayBuffer) => {
