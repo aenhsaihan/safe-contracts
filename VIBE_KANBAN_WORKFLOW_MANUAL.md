@@ -381,6 +381,31 @@ mcp_vibe-kanban_update_task(task_id, status: "done")
 
 **Note:** After merging and cleanup, the task should be marked "done" in Vibe Kanban. If it doesn't auto-update, manually update it.
 
+**⚠️ Important: Kanban Status May Not Persist**
+
+**Observation (November 16, 2025):**
+- Task was merged successfully to main
+- Kanban status was updated to "done"
+- Later, task showed as "in-review" again in kanban
+- Status update didn't persist
+
+**What to Do:**
+- After merging, always verify kanban status with MCP:
+  ```typescript
+  mcp_vibe-kanban_get_task(task_id)
+  // Check if status is actually "done"
+  ```
+- If status is incorrect (e.g., shows "in-review" but task is merged):
+  - Verify merge actually happened (check git log, files in main)
+  - Update kanban status again: `mcp_vibe-kanban_update_task(task_id, status: "done")`
+  - This may be a timing/sync issue with kanban
+
+**Why This Matters:**
+- Kanban status updates may not persist reliably
+- Always verify status after updating
+- Don't assume status update worked - check it
+- If user reports task still in review, verify merge and update again
+
 ---
 
 ## Agent Selection Guide
@@ -663,6 +688,57 @@ After merging, update `safecontracts-mvp-implementation.plan.md` to reflect comp
 ---
 
 ## Troubleshooting
+
+### Issue: Kanban Status Doesn't Persist
+
+**Problem:** Task was merged and kanban status was updated to "done", but later the task shows as "in-review" again.
+
+**Symptoms:**
+- Task shows "in-review" in kanban
+- But task was already merged to main
+- File exists in main branch
+- Merge commit exists in git history
+
+**Root Cause:**
+- Kanban status updates may not persist reliably
+- Possible timing/sync issue with kanban system
+- Status update may be lost or reverted
+
+**Solution:**
+1. **Verify merge actually happened:**
+   ```bash
+   git log --oneline | grep "task description"
+   ls -la path/to/merged/file
+   ```
+
+2. **Update kanban status again:**
+   ```typescript
+   mcp_vibe-kanban_update_task(task_id, status: "done")
+   ```
+
+3. **Verify status updated:**
+   ```typescript
+   const task = mcp_vibe-kanban_get_task(task_id);
+   if (task.status !== "done") {
+     // Update again or investigate
+   }
+   ```
+
+**Prevention:**
+- Always verify kanban status after updating
+- Don't assume status update worked - check it
+- If user reports task still in review, verify merge and update again
+
+**Example (November 16, 2025):**
+- Task: "Create server-side Amplify utilities"
+- Merged successfully to main (commit: 1f064dd)
+- Updated kanban to "done"
+- Later, task showed "in-review" again
+- Verified merge, updated status again - worked
+
+---
+
+## Troubleshooting (Legacy)
 
 ### Agent Stuck / Not Writing Code
 
