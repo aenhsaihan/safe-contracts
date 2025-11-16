@@ -76,6 +76,14 @@ const GET_CONTRACT_EXCHANGE = /* GraphQL */ `
   }
 `;
 
+const GET_CONTRACT_FILE = /* GraphQL */ `
+  query GetContractFile($id: ID!) {
+    getContractFile(id: $id) {
+      ${CONTRACT_FILE_FIELDS}
+    }
+  }
+`;
+
 const LIST_CONTRACT_FILES = /* GraphQL */ `
   query ListContractFiles($filter: ModelContractFileFilterInput) {
     listContractFiles(filter: $filter, limit: 500) {
@@ -139,6 +147,14 @@ export async function listContractFilesForExchange(
   );
 }
 
+export async function getContractFileById(id: string): Promise<ContractFileRecord | null> {
+  const data = await executeGraphQL<{
+    getContractFile?: ContractFileRecord | null;
+  }>(GET_CONTRACT_FILE, { id });
+
+  return data.getContractFile ?? null;
+}
+
 export async function createContractExchangeRecord(input: {
   title: string;
   partyAId: string;
@@ -179,4 +195,3 @@ async function executeGraphQL<T>(
 
   return result.data;
 }
-
