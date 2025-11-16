@@ -29,6 +29,11 @@ export type ContractFileRecord = {
   fileSize: number | null;
   fileHash?: string | null;
   s3Key: string;
+  kmsKeyId?: string | null;
+  kmsCiphertextKey?: string | null;
+  encryptionContextOwnerId?: string | null;
+  encryptionContextUploaderId?: string | null;
+  encryptionContextExchangeId?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 };
@@ -53,6 +58,11 @@ const CONTRACT_FILE_FIELDS = `
   fileSize
   fileHash
   s3Key
+  kmsKeyId
+  kmsCiphertextKey
+  encryptionContextOwnerId
+  encryptionContextUploaderId
+  encryptionContextExchangeId
   createdAt
   updatedAt
 `;
@@ -107,6 +117,14 @@ const UPDATE_CONTRACT_EXCHANGE_STATUS = /* GraphQL */ `
   mutation UpdateContractExchangeStatus($input: UpdateContractExchangeInput!) {
     updateContractExchange(input: $input) {
       ${CONTRACT_EXCHANGE_FIELDS}
+    }
+  }
+`;
+
+const CREATE_CONTRACT_FILE = /* GraphQL */ `
+  mutation CreateContractFile($input: CreateContractFileInput!) {
+    createContractFile(input: $input) {
+      ${CONTRACT_FILE_FIELDS}
     }
   }
 `;
@@ -198,6 +216,34 @@ export async function updateContractExchangeStatus(input: {
   }
 
   return data.updateContractExchange;
+}
+
+export async function createContractFileRecord(input: {
+  id: string;
+  exchangeId: string;
+  ownerId: string;
+  uploaderId: string;
+  fileName: string;
+  fileSize: number;
+  fileHash: string;
+  s3Key: string;
+  kmsKeyId: string;
+  kmsCiphertextKey: string;
+  encryptionContextOwnerId: string;
+  encryptionContextUploaderId: string;
+  encryptionContextExchangeId: string;
+}): Promise<ContractFileRecord> {
+  const data = await executeGraphQL<{
+    createContractFile?: ContractFileRecord | null;
+  }>(CREATE_CONTRACT_FILE, {
+    input,
+  });
+
+  if (!data.createContractFile) {
+    throw new Error("ContractFile creation returned an empty response.");
+  }
+
+  return data.createContractFile;
 }
 
 async function executeGraphQL<T>(

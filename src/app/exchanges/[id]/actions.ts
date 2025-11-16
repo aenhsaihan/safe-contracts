@@ -10,6 +10,7 @@ import {
 import {
   getContractExchangeById,
   getContractFileById,
+  createContractFileRecord,
 } from "@/lib/contracts-data";
 
 type UploadInput = ContractsFunctionOperationMap["encryptAndUpload"]["input"];
@@ -92,6 +93,23 @@ export async function uploadExchangeFileAction(input: UploadActionInput): Promis
   const result = await invokeContractsFunction({
     operation: "encryptAndUpload",
     payload,
+  });
+
+  // Create ContractFile record in DynamoDB after successful upload
+  await createContractFileRecord({
+    id: result.fileId,
+    exchangeId: payload.exchangeId,
+    ownerId: payload.ownerId,
+    uploaderId: payload.uploaderId,
+    fileName: payload.fileName,
+    fileSize: payload.fileSize,
+    fileHash: result.fileHash,
+    s3Key: result.s3Key,
+    kmsKeyId: result.kmsKeyId,
+    kmsCiphertextKey: result.kmsCiphertextKey,
+    encryptionContextOwnerId: result.encryptionContextOwnerId,
+    encryptionContextUploaderId: result.encryptionContextUploaderId,
+    encryptionContextExchangeId: result.encryptionContextExchangeId,
   });
 
   revalidatePath("/");

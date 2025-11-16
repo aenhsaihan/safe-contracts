@@ -263,6 +263,11 @@ async function encryptAndUpload(payload: EncryptAndUploadPayload) {
     fileId,
     s3Key,
     fileHash,
+    kmsKeyId,
+    kmsCiphertextKey: ciphertextKey,
+    encryptionContextOwnerId: ownerId,
+    encryptionContextUploaderId: uploaderId,
+    encryptionContextExchangeId: exchangeId,
   };
 }
 

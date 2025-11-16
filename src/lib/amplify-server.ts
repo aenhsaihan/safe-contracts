@@ -88,6 +88,11 @@ export type ContractsFunctionOperationMap = {
       fileId: string;
       s3Key: string;
       fileHash: string;
+      kmsKeyId: string;
+      kmsCiphertextKey: string;
+      encryptionContextOwnerId: string;
+      encryptionContextUploaderId: string;
+      encryptionContextExchangeId: string;
     };
   };
   decryptAndDownload: {
