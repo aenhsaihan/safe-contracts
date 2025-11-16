@@ -1,9 +1,10 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { uploadExchangeFileAction } from "@/app/exchanges/[id]/actions";
+import { markExchangeCompletedAction } from "@/app/exchanges/actions";
 
 type OwnerSelection = "MY_COPY" | "THEIR_COPY";
 
@@ -19,6 +20,7 @@ export default function UploadForm({ exchangeId, currentUserId, counterpartyId }
   const [selectedOwner, setSelectedOwner] = useState<OwnerSelection>("MY_COPY");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isStatusUpdating, startStatusUpdate] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [hashHex, setHashHex] = useState<string | null>(null);
 
@@ -64,7 +66,15 @@ export default function UploadForm({ exchangeId, currentUserId, counterpartyId }
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-      router.refresh();
+      startStatusUpdate(async () => {
+        try {
+          await markExchangeCompletedAction(exchangeId);
+        } catch (updateError) {
+          console.error("Failed to mark exchange as completed", updateError);
+        } finally {
+          router.refresh();
+        }
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed. Try again shortly.");
     } finally {
@@ -127,10 +137,10 @@ export default function UploadForm({ exchangeId, currentUserId, counterpartyId }
 
       <button
         type="submit"
-        disabled={!selectedFile || isSubmitting}
+        disabled={!selectedFile || isSubmitting || isStatusUpdating}
         className="w-full rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-200"
       >
-        {isSubmitting ? "Encrypting..." : "Upload with KMS envelope"}
+        {isSubmitting ? "Encrypting..." : isStatusUpdating ? "Finalizing..." : "Upload with KMS envelope"}
       </button>
 
       {error && <p className="text-sm text-rose-600">{error}</p>}
