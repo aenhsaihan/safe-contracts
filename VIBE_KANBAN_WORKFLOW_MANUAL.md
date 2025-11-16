@@ -551,6 +551,128 @@ When running multiple tasks in parallel:
 - **Default to CODEX** for all parallel tasks
 - CURSOR_AGENT is unreliable and may default to "Auto" even in parallel execution
 - CODEX works consistently and reduces verification overhead
+
+#### Determining Maximum Safe Parallel Execution
+
+**The 5-Way Parallel Execution Breakthrough (November 16, 2025)**
+
+We successfully executed **5 tasks in parallel** with zero conflicts. Here's how we determined the maximum safe count:
+
+**Step 1: List All Remaining Tasks**
+```typescript
+mcp_vibe-kanban_list_tasks(project_id, status: "todo")
+```
+
+**Step 2: Analyze File Targets for Each Task**
+For each task, identify:
+- What file(s) will be created/modified?
+- What directory path(s) will be affected?
+- Are there any dependencies on other tasks?
+
+**Step 3: Group Tasks by Non-Conflicting Paths**
+
+Create a mapping:
+```
+Task 1: amplify/auth/resource.ts (NEW/MODIFY)
+Task 2: amplify/backend/functions/contractsFunction/src/handler.ts (MODIFY - adds function)
+Task 3: src/app/exchanges/new/page.tsx (NEW)
+Task 4: src/app/exchanges/[id]/page.tsx (NEW)
+Task 5: src/components/contracts/* (NEW component)
+```
+
+**Step 4: Identify Conflict Risks**
+
+⚠️ **CONFLICT RISKS (Must run separately):**
+- Tasks that modify the same file (e.g., both modify `handler.ts`)
+- Tasks that modify files in the same directory that might overlap
+- Tasks that have dependencies on each other
+
+✅ **SAFE FOR PARALLEL:**
+- Tasks that create NEW files in different directories
+- Tasks that modify different files
+- Tasks with no dependencies
+
+**Step 5: Calculate Maximum Safe Count**
+
+The maximum safe parallel count = number of tasks with:
+- Different file targets
+- No overlapping paths
+- No dependencies
+
+**Example Analysis (5-Way Execution):**
+
+```
+✅ SAFE PARALLEL SET (5 tasks):
+
+1. Configure Cognito authentication
+   → amplify/auth/resource.ts
+   → No conflicts
+
+2. Implement encryptAndUpload operation
+   → amplify/backend/functions/contractsFunction/src/handler.ts
+   → Adds new function (different from decrypt)
+   → No conflicts
+
+3. Implement create exchange page
+   → src/app/exchanges/new/page.tsx
+   → New route, different from detail page
+   → No conflicts
+
+4. Implement exchange detail page
+   → src/app/exchanges/[id]/page.tsx
+   → New route, different from create page
+   → No conflicts
+
+5. Create file upload form component
+   → src/components/contracts/* (new component file)
+   → New component, different directory
+   → No conflicts
+
+Result: ALL 5 TASKS CREATE/MODIFY DIFFERENT FILES
+        ZERO CONFLICT RISK
+        MAXIMUM SAFE PARALLEL EXECUTION = 5
+```
+
+**Key Principles:**
+1. **Different directories = Safe** (e.g., `amplify/auth/` vs `src/app/exchanges/`)
+2. **Different routes = Safe** (e.g., `exchanges/new/` vs `exchanges/[id]/`)
+3. **Different files = Safe** (e.g., `resource.ts` vs `handler.ts`)
+4. **Same file = Conflict risk** (e.g., both modify `handler.ts` - must run separately)
+5. **Dependencies = Conflict risk** (e.g., Task B needs Task A's output - must run sequentially)
+
+**Workflow for Maximum Parallel Execution:**
+
+1. **List all remaining tasks**
+2. **Get task descriptions** to understand file targets
+3. **Map each task to its file/directory target**
+4. **Identify conflict groups** (tasks that touch same files)
+5. **Select maximum non-conflicting set**
+6. **Start all selected tasks with CODEX**
+7. **Verify executors immediately** (all should show CODEX, not "Auto")
+8. **Review and merge as each completes** (don't wait for all)
+
+**Success Metrics (5-Way Execution):**
+- ✅ 5 tasks started simultaneously
+- ✅ All used CODEX executor (no "Auto" issues)
+- ✅ All completed successfully
+- ✅ Zero merge conflicts
+- ✅ All merged independently
+- ✅ All worktrees/branches cleaned up
+- ✅ All kanban statuses updated correctly
+
+**Replication Checklist:**
+- [ ] List all remaining tasks
+- [ ] Analyze file targets for each task
+- [ ] Map tasks to file/directory paths
+- [ ] Identify conflict risks
+- [ ] Group tasks by non-conflicting paths
+- [ ] Calculate maximum safe count
+- [ ] Start all selected tasks with CODEX
+- [ ] Verify executors (all CODEX, no "Auto")
+- [ ] Monitor progress (listen for "moo" sounds)
+- [ ] Review and merge as each completes
+- [ ] Clean up worktrees and branches
+- [ ] Update kanban statuses
 - Each task runs in its own isolated worktree, so no conflicts
 
 **Verification for Parallel Tasks:**
@@ -816,6 +938,9 @@ git branch -d vk/xxx
 5. **Avoid "Auto" model** - Use specific executors
 6. **Review thoroughly** - Check structure, code, dependencies
 7. **Update documentation** - Keep implementation plan current
+8. **Maximum parallel execution is achievable** - With careful analysis, 5+ tasks can run safely in parallel
+9. **File target analysis is critical** - Understanding what files each task touches prevents conflicts
+10. **CODEX is reliable for parallel execution** - Consistent performance across multiple simultaneous tasks
 
 ---
 
