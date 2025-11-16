@@ -11,6 +11,8 @@ import {
 } from "@aws-amplify/ui-react";
 import { Amplify } from "aws-amplify";
 import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import amplifyOutputs from "../../../amplify_outputs.json";
 
 Amplify.configure(amplifyOutputs, { ssr: true });
@@ -107,6 +109,10 @@ const components: AuthenticatorProps["components"] = {
   },
 };
 
+type AuthenticatorRenderProps = Parameters<
+  NonNullable<AuthenticatorProps["children"]>
+>[0];
+
 export default function SignInPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-10 dark:bg-black">
@@ -115,26 +121,38 @@ export default function SignInPage() {
         signUpAttributes={["email", "phone_number"]}
         formFields={formFields}
         components={components}
-      >
-        {({ user, signOut }) => (
-          <View className="flex min-w-[320px] flex-col gap-4 rounded-xl bg-white p-6 shadow-lg dark:bg-zinc-900">
-            <Heading level={4}>Welcome back</Heading>
-            <Text variation="secondary">
-              Signed in as{" "}
-              {user?.signInDetails?.loginId ?? user?.username ?? "unknown user"}
-            </Text>
-            <Button variation="primary" onClick={signOut}>
-              Sign out
-            </Button>
-            <Link
-              className="text-sm font-medium text-sky-600 no-underline hover:underline"
-              href="/"
-            >
-              Continue to dashboard
-            </Link>
-          </View>
-        )}
+        >
+        {(slotProps) => <AuthenticatorContent {...slotProps} />}
       </Authenticator>
     </div>
+  );
+}
+
+function AuthenticatorContent({ user, signOut }: AuthenticatorRenderProps) {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user) {
+      router.refresh();
+    }
+  }, [user, router]);
+
+  return (
+    <View className="flex min-w-[320px] flex-col gap-4 rounded-xl bg-white p-6 shadow-lg dark:bg-zinc-900">
+      <Heading level={4}>Welcome back</Heading>
+      <Text variation="secondary">
+        Signed in as{" "}
+        {user?.signInDetails?.loginId ?? user?.username ?? "unknown user"}
+      </Text>
+      <Button variation="primary" onClick={signOut}>
+        Sign out
+      </Button>
+      <Link
+        className="text-sm font-medium text-sky-600 no-underline hover:underline"
+        href="/"
+      >
+        Continue to dashboard
+      </Link>
+    </View>
   );
 }
