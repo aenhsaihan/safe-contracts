@@ -227,13 +227,47 @@ git worktree list
 git branch -a
 ```
 
-#### 8. Update Kanban
+#### 8. Merge to Main
+
+```bash
+# From main branch, merge the worktree branch
+cd /path/to/main/repo
+git merge --no-ff vk/{attempt-id}-{task-slug} -m "feat: description of changes"
+
+# Verify merge
+git log --oneline -3
+ls -la src/components/...  # verify files are there
+```
+
+**Merge Best Practices:**
+- Use `--no-ff` to preserve branch history
+- Write descriptive commit messages
+- Verify files are correctly merged
+- Check that no unintended files (like manual updates) are included
+
+#### 9. Cleanup Worktree & Branch
+
+```bash
+# Remove worktree
+git worktree remove /path/to/worktree
+
+# Delete merged branch
+git branch -d vk/{attempt-id}-{task-slug}
+
+# Verify cleanup
+git worktree list
+git branch -a
+```
+
+#### 10. Update Kanban
 
 ```typescript
-// Task status auto-updates to "done" when branch is merged
-// But we can manually update if needed:
+// Task status may auto-update to "done" when branch is merged
+// But we should manually update to ensure it's marked complete:
 mcp_vibe-kanban_update_task(task_id, status: "done")
 ```
+
+**Note:** After merging and cleanup, the task should be marked "done" in Vibe Kanban. If it doesn't auto-update, manually update it.
 
 ---
 
@@ -311,7 +345,43 @@ Choose Executor Based on Task Type
 
 ## Best Practices
 
-### 1. Always Test Before Merge
+### 1. Review in Worktree Without Switching Main Branch
+
+**The Isolated Review Pattern:**
+
+When reviewing a task's work, you can review it directly from the worktree path without ever leaving the main branch:
+
+```bash
+# Main branch stays on main
+cd /path/to/main/repo  # stay here
+
+# Review using absolute paths to worktree
+read_file /path/to/worktree/src/components/auth/Auth.tsx
+run_terminal_cmd "cd /path/to/worktree && git status"
+run_terminal_cmd "cd /path/to/worktree && git diff main"
+
+# Test in worktree
+run_terminal_cmd "cd /path/to/worktree && npm test"
+
+# Merge from main
+cd /path/to/main/repo
+git merge --no-ff vk/branch-name
+```
+
+**Why This Works:**
+- Worktrees are separate directories, so you can access them via absolute paths
+- Main branch never needs to switch away
+- Multiple tasks can be reviewed in parallel
+- Clean separation between review and main branch state
+
+**Benefits:**
+- ✅ Main branch always stays clean
+- ✅ Review happens in complete isolation
+- ✅ No risk of accidentally committing to wrong branch
+- ✅ Can review multiple tasks simultaneously
+- ✅ Easy to test without affecting main
+
+### 2. Always Test Before Merge
 
 ```bash
 # Test in worktree isolation
