@@ -1,6 +1,6 @@
 import { defineBackend } from '@aws-amplify/backend';
 import { Stack } from 'aws-cdk-lib';
-import { FunctionUrlAuthType } from 'aws-cdk-lib/aws-lambda';
+import { FunctionUrlAuthType, FunctionUrl } from 'aws-cdk-lib/aws-lambda';
 import { CfnFunction } from 'aws-cdk-lib/aws-lambda';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
@@ -52,7 +52,9 @@ cfnFunction.environment = {
 };
 
 // Add function URL for HTTP access (NONE auth since Lambda validates Cognito tokens)
-const functionUrl = lambdaFunction.addFunctionUrl({
+// Create FunctionUrl directly using CDK construct
+const functionUrl = new FunctionUrl(stack, 'ContractsFunctionUrl', {
+  function: lambdaFunction,
   authType: FunctionUrlAuthType.NONE,
 });
 
