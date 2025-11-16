@@ -124,7 +124,7 @@ mcp_vibe-kanban_get_task(task_id)
 ```typescript
 mcp_vibe-kanban_start_task_attempt(
   task_id: string,
-  executor: "CODEX" | "CURSOR_AGENT",
+  executor: "CODEX" | "CURSOR_AGENT",  // ⚠️ NEVER use "Auto" or undefined
   base_branch: "main"
 )
 ```
@@ -134,6 +134,16 @@ mcp_vibe-kanban_start_task_attempt(
 - Creates branch: `vk/{attempt-id}-{task-slug}`
 - Sets task status to `in-progress`
 - Agent begins working in the isolated worktree
+
+**⚠️ CRITICAL: Verify Executor Immediately**
+After starting, immediately check:
+1. Task status shows `in-progress` (not stuck)
+2. Vibe Kanban UI doesn't show "System initialized with model: Auto"
+3. If "Auto" appears, STOP and restart with explicit executor
+
+**Common Mistake:**
+- Starting task without verifying executor → Agent uses "Auto" → Task hangs
+- **Solution:** Always verify executor is set correctly before moving on
 
 #### 3. Wait for Agent Completion
 
@@ -389,6 +399,55 @@ This workflow is still evolving as we:
 
 **Current Status:** ✅ Working well for Lambda function structure creation  
 **Next Steps:** Apply to more complex tasks (encryptAndUpload, decryptAndDownload operations)
+
+---
+
+## Post-Mortem: "Auto" Model Issue in Parallel Execution
+
+### Issue Recurrence (November 16, 2025)
+
+**What Happened:**
+When attempting parallel task execution for the first time, Task 2 (Create Auth component wrapper) got stuck using "Auto" model selection, even though we explicitly specified `CURSOR_AGENT` as the executor.
+
+**Root Cause:**
+- When starting multiple tasks in parallel, we may have inadvertently triggered a default behavior
+- The `start_task_attempt` function may have a fallback to "Auto" if the executor parameter isn't properly validated
+- We didn't verify the executor was correctly set before the agent started working
+
+**Why It Happened Again:**
+1. **Rushed parallel execution setup** - When starting 2 tasks quickly, we didn't verify each one's configuration
+2. **Assumed executor parameter was sufficient** - Didn't check if Vibe Kanban actually used the specified executor
+3. **No immediate verification step** - Started tasks and moved on without confirming they were using the right model
+
+**How to Prevent:**
+1. **Always verify executor after starting** - Check task status immediately after `start_task_attempt`
+2. **Check Vibe Kanban UI** - After starting, quickly check the task in UI to confirm it's not using "Auto"
+3. **Add verification step to workflow** - Make it a mandatory step: "Start attempt → Verify executor → Continue"
+4. **Monitor first few seconds** - Watch the task for 10-15 seconds to catch "Auto" model issues early
+
+**Updated Workflow Step:**
+```typescript
+// Step 2.5: Verify Executor (NEW)
+mcp_vibe-kanban_start_task_attempt(task_id, executor, base_branch)
+
+// IMMEDIATELY verify:
+// 1. Check task status
+// 2. Check Vibe Kanban UI for "Auto" model warning
+// 3. If "Auto" detected, stop and restart with explicit executor
+```
+
+**Lesson Learned:**
+- Never assume the executor parameter is being used correctly
+- Always verify immediately after starting a task attempt
+- When running parallel tasks, verify each one individually
+- "Auto" model is a red flag - catch it early, don't wait for timeout
+
+**Prevention Checklist:**
+- [ ] Verify executor is specified (CODEX or CURSOR_AGENT)
+- [ ] Check task status immediately after starting
+- [ ] Monitor first 15 seconds for "Auto" model warnings
+- [ ] If "Auto" detected, stop immediately and restart
+- [ ] Document which executor worked for similar tasks
 
 ---
 
