@@ -324,14 +324,21 @@ mcp_vibe-kanban_update_task(task_id, status: "done")
 
 **Example Tasks:**
 - "Create Auth component wrapper" (attempted, but defaulted to "Auto" - switched to CODEX)
+- "Create server-side Amplify utilities" (attempted, but defaulted to "Auto" - switched to CODEX)
 - Setting up new features
 - Component architecture setup
 
-**⚠️ Important Notes:**
-- **May default to "Auto"** - must verify immediately after starting
+**⚠️ CRITICAL WARNING:**
+- **Frequently defaults to "Auto"** - even when explicitly specified in `start_task_attempt`
+- **Multiple occurrences:** This has happened repeatedly (Task 2, Auth component, server utilities)
 - **If "Auto" appears:** Stop immediately and restart with CODEX
 - **Verification required:** Check UI within 5-10 seconds to confirm it's not using "Auto"
-- **Still preferred** for certain tasks, but requires careful monitoring
+- **Recommendation:** Consider using CODEX by default, or only use CURSOR_AGENT if you can verify it's working correctly
+
+**Known Issue:**
+- The `executor: "CURSOR_AGENT"` parameter in `start_task_attempt` may be ignored by Vibe Kanban
+- This appears to be a systemic issue, not just a one-time bug
+- CODEX consistently works when specified, CURSOR_AGENT does not
 
 ### Executor Selection Decision Tree
 
