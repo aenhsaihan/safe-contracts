@@ -1,7 +1,6 @@
-import type { AWSAmplifyBackendOutputs } from "@aws-amplify/client-config";
 import amplifyOutputsJson from "../../amplify_outputs.json";
 
-export type ContractsAmplifyOutputs = AWSAmplifyBackendOutputs & {
+export type ContractsAmplifyOutputs = typeof amplifyOutputsJson & {
   functions?: {
     contractsFunction?: {
       functionUrl?: string;

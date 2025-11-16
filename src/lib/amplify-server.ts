@@ -1,17 +1,17 @@
 import { createServerRunner, type NextServer } from "@aws-amplify/adapter-nextjs";
+import { generateServerClientUsingCookies } from "@aws-amplify/adapter-nextjs/api";
 import type { AmplifyServer } from "aws-amplify/adapter-core/internals";
 import { getCurrentUser, fetchAuthSession } from "aws-amplify/auth/server";
-import { generateClient } from "aws-amplify/data";
 import { cookies } from "next/headers";
 
-import type { Schema } from "../../amplify/data/resource";
 import { amplifyOutputs, resolveContractsFunctionUrl } from "./contracts-config";
 
 const {
   runWithAmplifyServerContext: runWithAmplifyServerContextBase,
 } = createServerRunner({ config: amplifyOutputs });
 
-const dataClient = generateClient<Schema>({ config: amplifyOutputs });
+// Note: Data client should be generated inside server context operations
+// We'll generate it lazily when needed
 
 type RunWithAmplifyServerContextInput<Result> = {
   nextServerContext?: NextServer.Context | null;
@@ -58,11 +58,17 @@ export async function getCurrentUserServerSide() {
 }
 
 /**
- * Provides a singleton Amplify Data client wired up with the generated schema.
- * Consumers should invoke client APIs inside `runWithAmplifyServerContext`.
+ * Provides an Amplify Data client wired up with the generated schema.
+ * Uses generateServerClientUsingCookies for proper server-side context.
  */
 export function getDataClientServerSide() {
-  return dataClient;
+  // Use generateServerClientUsingCookies for server-side usage
+  // This properly handles the Next.js server context
+  const client = generateServerClientUsingCookies({
+    config: amplifyOutputs,
+    cookies,
+  });
+  return client;
 }
 
 export type ContractsFunctionOperationMap = {

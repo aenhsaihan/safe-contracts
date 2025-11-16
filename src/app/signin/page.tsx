@@ -64,7 +64,6 @@ const formFields: AuthenticatorProps["formFields"] = {
     confirmation_code: {
       label: "MFA verification code",
       placeholder: "123456",
-      textAlign: "center",
     },
   },
   forgotPassword: {
@@ -73,7 +72,7 @@ const formFields: AuthenticatorProps["formFields"] = {
       placeholder: "you@example.com",
     },
   },
-  confirmForgotPassword: {
+  confirmResetPassword: {
     confirmation_code: {
       label: "Reset code",
       placeholder: "123456",

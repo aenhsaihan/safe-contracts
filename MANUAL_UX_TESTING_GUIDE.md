@@ -205,6 +205,57 @@ Runtime AuthUserPoolException: Auth UserPool not configured
 
 ---
 
+### Issue 6: Runtime Error - `Cannot read properties of undefined (reading 'list')`
+
+**Problem:**
+```
+TypeError: Cannot read properties of undefined (reading 'list')
+```
+
+**Why it happened:**
+- We relied on `dataClient.models.ContractExchange.list(...)` and similar helpers
+- Those helpers are only generated when `amplify_outputs.json` contains the `data.model_introspection` block produced by `defineData`
+- Because of the Amplify Gen 2 Zod bug (see Issue 4), our manually created outputs never included `model_introspection`
+- As a result, `dataClient.models` was `undefined`, so any attempt to read `.list` or `.create` exploded during SSR
+
+**How we fixed it:**
+1. Added `src/lib/contracts-data.ts` with raw GraphQL documents for all operations we need (list exchanges, list files, create exchange)
+2. Updated the dashboard, exchange detail page, and new exchange form to call those helpers instead of `client.models.*`
+3. Left authentication/session handling to `getDataClientServerSide()`, but no longer depend on missing schema metadata
+
+**How to avoid:**
+- Don’t assume `client.models` exists unless you can verify `model_introspection` is present in your outputs
+- Prefer concentring all raw GraphQL calls in a single helper so signatures and auth handling stay consistent
+- If Amplify ever regenerates the outputs correctly, you can migrate back—but keep the raw queries as a fallback
+
+---
+
+### Issue 7: Runtime Error - `Body must be a string. Received: undefined.`
+
+**Problem:**
+```
+Error: Body must be a string. Received: undefined.
+```
+
+**Why it happened:**
+- After switching to raw GraphQL queries we still called `client.graphql(contextSpec, { query, variables })`
+- That signature is for the request/response client (`generateServerClientUsingReqRes`), not the cookie-based client we use (`generateServerClientUsingCookies`)
+- Passing the server `contextSpec` object as the first argument caused the GraphQL engine to treat it as the “query body”, producing the error above
+
+**How we fixed it:**
+1. Updated `executeGraphQL` to call the cookie client correctly: `(await client.graphql({ query, variables }))`
+2. Removed the extra `runWithAmplifyServerContext` wrapper for these operations—the cookie client already injects cookies automatically
+3. Kept the helper typed so we still get compile-time checking on the response payloads
+
+**How to avoid:**
+- Remember the two call signatures:
+  - Cookie client → `client.graphql({ query, variables })`
+  - Req/res client → `client.graphql(contextSpec, { query, variables })`
+- Wrap all GraphQL calls in one helper (`executeGraphQL`) so the correct signature lives in one place
+- If you switch client types later, you only need to update that helper
+
+---
+
 ## Summary of Lessons Learned
 
 1. **Import paths matter:** Always use centralized utility modules, not direct package imports

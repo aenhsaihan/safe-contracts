@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { getDataClientServerSide, runWithAmplifyServerContext } from "@/lib/amplify-server";
+import { getContractExchangeById, listContractFilesForExchange } from "@/lib/contracts-data";
 
 type PageParams = { id: string };
 
@@ -19,38 +19,13 @@ export default async function ExchangeDetailPage({
   const resolvedParams = await params;
   const exchangeId = decodeURIComponent(resolvedParams.id);
 
-  const dataClient = getDataClientServerSide();
-
-  const exchangeResponse = await runWithAmplifyServerContext({
-    operation: () => dataClient.models.ContractExchange.get({ id: exchangeId }),
-  });
-
-  if (exchangeResponse.errors?.length) {
-    const message = exchangeResponse.errors.map((error) => error.message).join("; ");
-    throw new Error(`Unable to load exchange ${exchangeId}: ${message}`);
-  }
-
-  const exchange = exchangeResponse.data;
+  const exchange = await getContractExchangeById(exchangeId);
 
   if (!exchange) {
     notFound();
   }
 
-  const filesResponse = await runWithAmplifyServerContext({
-    operation: () =>
-      dataClient.models.ContractFile.list({
-        filter: {
-          exchangeId: { eq: exchangeId },
-        },
-      }),
-  });
-
-  if (filesResponse.errors?.length) {
-    const message = filesResponse.errors.map((error) => error.message).join("; ");
-    throw new Error(`Unable to load files for exchange ${exchangeId}: ${message}`);
-  }
-
-  const files = [...(filesResponse.data ?? [])].sort((left, right) => {
+  const files = (await listContractFilesForExchange(exchangeId)).sort((left, right) => {
     const leftDate = new Date(left.createdAt ?? left.updatedAt ?? 0).getTime();
     const rightDate = new Date(right.createdAt ?? right.updatedAt ?? 0).getTime();
     return rightDate - leftDate;
@@ -157,7 +132,10 @@ export default async function ExchangeDetailPage({
   );
 }
 
-function describeParticipant(userId: string, exchange: ExchangeParticipants) {
+function describeParticipant(
+  userId: string,
+  exchange: ExchangeParticipants
+) {
   if (userId === exchange.partyAId) {
     return `Party A (${userId})`;
   }

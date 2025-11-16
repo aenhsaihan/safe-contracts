@@ -1,12 +1,12 @@
 import Link from "next/link";
 
+import { getCurrentUserServerSide } from "@/lib/amplify-server";
 import {
-  getCurrentUserServerSide,
-  getDataClientServerSide,
-  runWithAmplifyServerContext,
-} from "@/lib/amplify-server";
+  ContractExchangeRecord,
+  listContractExchangesForUser,
+} from "@/lib/contracts-data";
 
-type ExchangeRecord = Awaited<ReturnType<typeof fetchExchangesForUser>>[number];
+type ExchangeRecord = ContractExchangeRecord;
 
 export default async function DashboardPage() {
   const currentUser = await getCurrentUserServerSide();
@@ -56,24 +56,9 @@ export default async function DashboardPage() {
 }
 
 async function fetchExchangesForUser(userId: string) {
-  const dataClient = getDataClientServerSide();
-  const response = await runWithAmplifyServerContext({
-    operation: () =>
-      dataClient.models.ContractExchange.list({
-        filter: {
-          or: [{ partyAId: { eq: userId } }, { partyBId: { eq: userId } }],
-        },
-      }),
-  });
+  const list = await listContractExchangesForUser(userId);
 
-  if (response.errors?.length) {
-    const message = response.errors.map((error) => error.message).join("; ");
-    throw new Error(`Unable to load exchanges: ${message}`);
-  }
-
-  const list = [...(response.data ?? [])];
-
-  return list.sort((left, right) => {
+  return [...list].sort((left, right) => {
     const leftDate = new Date(left.createdAt ?? left.updatedAt ?? 0).getTime();
     const rightDate = new Date(right.createdAt ?? right.updatedAt ?? 0).getTime();
     return rightDate - leftDate;

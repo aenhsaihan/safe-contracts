@@ -17,7 +17,7 @@ export const auth = defineAuth({
   },
   accountRecovery: 'EMAIL_ONLY',
   multifactor: {
-    mode: 'REQUIRED',
+    mode: 'OPTIONAL', // Changed to OPTIONAL for testing - users can skip MFA
     sms: true,
     totp: true,
   },
