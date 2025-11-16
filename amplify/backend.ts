@@ -1,5 +1,6 @@
 import { defineBackend } from '@aws-amplify/backend';
 import { Stack } from 'aws-cdk-lib';
+import { FunctionUrlAuthType } from 'aws-cdk-lib/aws-lambda';
 import { CfnFunction } from 'aws-cdk-lib/aws-lambda';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
@@ -29,27 +30,22 @@ const kmsKey = defineKMS(stack);
 // Configure IAM role for Lambda function with permissions to access S3 and KMS
 const lambdaRole = defineLambdaIAMRole(stack, bucket, kmsKey);
 
-// Configure the Lambda function: attach IAM role, set environment variables, and add function URL
-const lambdaFunction = backend.contractsFunction.resources.lambda;
+// Attach the IAM role to the function (replace the default role)
+backend.contractsFunction.resources.lambda.role = lambdaRole;
 
-// Use CDK escape hatch to configure the function
-// Access the underlying CloudFormation resource to set role and environment variables
-const cfnFunction = lambdaFunction.node.defaultChild as CfnFunction;
-cfnFunction.role = lambdaRole.roleArn;
+// Set environment variables
+backend.contractsFunction.resources.lambda.addEnvironment('SAFE_CONTRACTS_BUCKET', bucket.bucketName);
+backend.contractsFunction.resources.lambda.addEnvironment('SAFE_CONTRACTS_KMS_KEY_ID', kmsKey.keyId);
+backend.contractsFunction.resources.lambda.addEnvironment('SAFE_CONTRACTS_DATA_API_URL', backend.data.resources.graphqlApi.graphqlUrl);
 
-// Set environment variables via CloudFormation
-const existingEnv = (cfnFunction.environment as any)?.variables || {};
-cfnFunction.environment = {
-  variables: {
-    ...existingEnv,
-    SAFE_CONTRACTS_BUCKET: bucket.bucketName,
-    SAFE_CONTRACTS_KMS_KEY_ID: kmsKey.keyId,
-    SAFE_CONTRACTS_DATA_API_URL: backend.data.resources.graphqlApi.apiId
-      ? `https://${backend.data.resources.graphqlApi.apiId}.appsync-api.${stack.region}.amazonaws.com/graphql`
-      : '',
+// Add function URL for HTTP access (NONE auth since Lambda validates Cognito tokens)
+const functionUrl = backend.contractsFunction.resources.lambda.addFunctionUrl({
+  authType: FunctionUrlAuthType.NONE,
+});
+
+// Export the function URL to custom outputs so it's available in amplify_outputs.json
+backend.addOutput({
+  custom: {
+    contractsFunctionUrl: functionUrl.url,
   },
-};
-
-// Function URL is already created and configured for this Lambda function
-// The URL is available in amplify_outputs.json (manually added due to Amplify Gen 2 bug)
-// No need to create it again - AWS Lambda only allows one function URL per function
+});
