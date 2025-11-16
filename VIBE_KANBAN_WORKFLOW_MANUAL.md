@@ -246,24 +246,61 @@ mcp_vibe-kanban_update_task(task_id, status: "done")
 - Incremental changes
 - Small fixes and refactoring
 - TypeScript/JavaScript code generation
+- **Reliable fallback** when CURSOR_AGENT defaults to "Auto"
 
 **Example Tasks:**
 - "Create contractsFunction Lambda structure" ✅ (worked well)
+- "Create crypto-utils helper" ✅ (worked well)
 - Code completion in existing files
 - Adding dependencies to package.json
+
+**Reliability:**
+- ✅ **Always respects executor parameter** - never defaults to "Auto"
+- ✅ **Proven to work** - multiple successful tasks completed
+- ✅ **Use as fallback** when CURSOR_AGENT has issues
 
 ### CURSOR_AGENT
 
 **Best For:**
 - Full feature implementation
 - Setting up project structure
+- Creating new components from scratch
 - Complex multi-file changes
-- When CODEX gets stuck
 
 **Example Tasks:**
-- Creating multiple related files
-- Setting up authentication flows
-- Complex backend integrations
+- "Create Auth component wrapper" (attempted, but defaulted to "Auto" - switched to CODEX)
+- Setting up new features
+- Component architecture setup
+
+**⚠️ Important Notes:**
+- **May default to "Auto"** - must verify immediately after starting
+- **If "Auto" appears:** Stop immediately and restart with CODEX
+- **Verification required:** Check UI within 5-10 seconds to confirm it's not using "Auto"
+- **Still preferred** for certain tasks, but requires careful monitoring
+
+### Executor Selection Decision Tree
+
+```
+Start Task
+    ↓
+Choose Executor Based on Task Type
+    ↓
+    ├─→ CURSOR_AGENT (for full features)
+    │       ↓
+    │   Verify in UI (5-10 seconds)
+    │       ↓
+    │   ├─→ "Auto" detected? → STOP → Restart with CODEX
+    │   └─→ Working correctly? → Continue
+    │
+    └─→ CODEX (for code completion OR as fallback)
+            ↓
+        Verify in UI (5-10 seconds)
+            ↓
+        ├─→ "Auto" detected? → STOP → Investigate (shouldn't happen with CODEX)
+        └─→ "gpt-5-codex" or "gpt-4-codex"? → Continue ✅
+```
+
+**Key Principle:** **Never execute with "Auto" - always verify and switch to CODEX if needed**
 
 ### Model Selection
 
