@@ -154,25 +154,42 @@ After starting, immediately check:
 
 #### 4. Review Agent Work
 
-```bash
-# Check worktree
-cd /private/var/folders/.../vibe-kanban/worktrees/{attempt-id}-{task-slug}
+**Best Practice: Review in Worktree Without Switching Main Branch**
 
-# Review changes
+You can review the code directly from the worktree path without ever leaving the main branch:
+
+```bash
+# Review from worktree path (use absolute path, no need to cd or switch branches)
+# Worktree path: /private/var/folders/.../vibe-kanban/worktrees/{attempt-id}-{task-slug}
+
+# Check what was created (using absolute path)
+cd /path/to/worktree
 git status
 git log --oneline -5
 git diff main...HEAD
 
+# Read files directly from worktree (using absolute paths)
+cat /path/to/worktree/src/components/auth/Auth.tsx
+read_file /path/to/worktree/src/components/auth/Auth.tsx
+
 # Check files created
-ls -la amplify/backend/functions/...
+ls -la /path/to/worktree/amplify/backend/functions/...
 ```
 
+**Key Benefits:**
+- ✅ **Main branch stays clean** - never switch away from main
+- ✅ **Isolated review** - all review happens in worktree
+- ✅ **No branch switching** - use absolute paths to read files
+- ✅ **Parallel reviews** - can review multiple tasks independently
+- ✅ **Safe testing** - test in worktree without affecting main
+
 **Review Checklist:**
-- ✅ Directory structure correct
-- ✅ Files created as expected
-- ✅ Code syntax correct
-- ✅ Dependencies appropriate
-- ✅ Follows project conventions
+- [ ] Check git status in worktree
+- [ ] Review files created/modified
+- [ ] Verify code quality and structure
+- [ ] Check for TypeScript/compilation errors (if applicable)
+- [ ] Verify dependencies are correct
+- [ ] Ensure no unintended files (like manual updates) are included
 
 #### 5. Test in Isolation (Before Merge)
 
@@ -198,55 +215,10 @@ npx ampx sandbox --once
 - ✅ Can fix issues in branch before merge
 - ✅ Maintains clean main branch
 
-#### 5. Review & Test
-
-**Best Practice: Review in Worktree Without Switching Main Branch**
-
-You can review the code directly from the worktree path without ever leaving the main branch:
-
-```bash
-# Review from worktree path (no need to cd or switch branches)
-# Use absolute path to worktree for all review operations
-
-# Check what was created
-cd /path/to/worktree
-git status
-git diff main
-git log --oneline -3
-
-# Read files directly from worktree (using absolute paths)
-cat /path/to/worktree/src/components/auth/Auth.tsx
-
-# Test the code (if needed)
-cd /path/to/worktree
-npm install  # if needed
-npm run build  # if applicable
-npm test  # if applicable
-
-# Check file structure
-ls -la /path/to/worktree/src/components/...
-```
-
-**Key Benefits:**
-- ✅ **Main branch stays clean** - never switch away from main
-- ✅ **Isolated review** - all review happens in worktree
-- ✅ **No branch switching** - use absolute paths to read files
-- ✅ **Parallel reviews** - can review multiple tasks independently
-- ✅ **Safe testing** - test in worktree without affecting main
-
-**Review Checklist:**
-- [ ] Check git status in worktree
-- [ ] Review files created/modified
-- [ ] Verify code quality and structure
-- [ ] Check for TypeScript/compilation errors (if applicable)
-- [ ] Verify dependencies are correct
-- [ ] Test functionality (if applicable)
-- [ ] Ensure no unintended files (like manual updates) are included
-
 #### 6. Merge to Main
 
 ```bash
-# From main branch, merge the worktree branch
+# From main branch (you're already here, never left!)
 cd /path/to/main/repo
 git merge --no-ff vk/{attempt-id}-{task-slug} -m "feat: description of changes"
 
@@ -260,6 +232,7 @@ ls -la src/components/...  # verify files are there
 - Write descriptive commit messages
 - Verify files are correctly merged
 - Check that no unintended files (like manual updates) are included
+- **You never left main branch** - merge happens from main
 
 #### 7. Cleanup Worktree & Branch
 
