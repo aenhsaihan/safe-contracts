@@ -5,6 +5,7 @@ type ExchangeSummary = {
   status: "PENDING" | "COMPLETED" | "ACTION_REQUIRED";
   updatedAt: string;
   fileCount: number;
+  latestFileTimestamp?: string | null;
 };
 
 interface ExchangeListProps {
@@ -41,9 +42,16 @@ export default function ExchangeList({ exchanges }: ExchangeListProps) {
                   day: "numeric",
                 })}
               </p>
+              {exchange.latestFileTimestamp && (
+                <p className="text-xs text-zinc-400">
+                  Last file {formatRecentFileTimestamp(exchange.latestFileTimestamp)}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-sm text-zinc-500">{exchange.fileCount} files</span>
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                {exchange.fileCount} {exchange.fileCount === 1 ? "file" : "files"}
+              </span>
               <span
                 className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusColors[exchange.status]}`}
               >
@@ -55,4 +63,22 @@ export default function ExchangeList({ exchanges }: ExchangeListProps) {
       </div>
     </section>
   );
+}
+
+function formatRecentFileTimestamp(input: string | null | undefined) {
+  if (!input) {
+    return "";
+  }
+
+  const value = new Date(input);
+  if (Number.isNaN(value.getTime())) {
+    return "";
+  }
+
+  return value.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
