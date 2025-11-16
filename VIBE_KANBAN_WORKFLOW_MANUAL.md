@@ -514,15 +514,46 @@ After stopping the stuck attempt and resetting the task, we tried starting with 
 - If CURSOR_AGENT is needed, verify it's actually using the specified model
 - Document which executors work correctly
 
+**⚠️ CRITICAL INSIGHT: The "Auto" Model is the Real Problem**
+
+**The Core Issue:**
+- **"Auto" model is the main blocker** - as long as we avoid "Auto", we should be fine
+- Both CODEX and CURSOR_AGENT can work, but CODEX is more reliable at respecting the executor parameter
+- The goal is to **never execute with "Auto"** - always use an explicit executor
+
+**Executor Selection Strategy:**
+- **Primary choice:** Use the executor that best fits the task (CODEX for code completion, CURSOR_AGENT for full features)
+- **Fallback strategy:** If CURSOR_AGENT defaults to "Auto", immediately switch to CODEX
+- **Verification required:** Always verify the executor is actually being used (check for "model: gpt-5-codex" or similar, NOT "Auto")
+
+**When to Use Each Executor:**
+- **CODEX:** 
+  - Reliable fallback when CURSOR_AGENT fails
+  - Good for code completion and incremental changes
+  - Always respects executor parameter
+  - Use when you need guaranteed execution without "Auto"
+  
+- **CURSOR_AGENT:**
+  - Preferred for full feature implementation
+  - Better for setting up project structure
+  - **BUT:** Must verify it's not using "Auto" - if it does, switch to CODEX immediately
+
+**Best Practice:**
+1. Try CURSOR_AGENT first if it fits the task
+2. **Immediately verify** it's not using "Auto" (within 5-10 seconds)
+3. If "Auto" appears, stop and restart with CODEX
+4. CODEX is the reliable fallback that unblocks us when CURSOR_AGENT has issues
+
 **Updated Workflow:**
 1. Stop stuck attempt (via UI Stop button)
 2. Reset task to "todo"
 3. Clean up old worktree
-4. Start with **CODEX** executor (known to work)
-5. Verify in UI: should show "model: gpt-5-codex" (not "Auto")
-6. Monitor agent progress
+4. Start with **CODEX** executor (known to work) OR try CURSOR_AGENT first if preferred
+5. **IMMEDIATELY verify** in UI: should show "model: gpt-5-codex" or "model: gpt-4-codex" (CODEX) or similar for CURSOR_AGENT, but **NOT "Auto"**
+6. If "Auto" appears, stop immediately and restart with CODEX
+7. Monitor agent progress
 
-**Status:** ✅ **RESOLVED** - Use CODEX executor for reliable execution
+**Status:** ✅ **RESOLVED** - Avoid "Auto" model at all costs. CODEX is reliable fallback when CURSOR_AGENT defaults to "Auto"
 
 ---
 
