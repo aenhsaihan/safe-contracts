@@ -155,12 +155,24 @@ After starting, immediately check:
 - Starting task without verifying executor → Agent uses "Auto" → Task hangs
 - **Solution:** Always verify executor is set correctly before moving on
 
-#### 3. Wait for Agent Completion
+#### 3. Monitor Task Progress
 
 - **DO NOT** work on the task directly
 - Wait for user notification (Vibe Kanban "moo" sound indicates completion)
-- Or check task status: `mcp_vibe-kanban_get_task(task_id)`
+- **Use MCP commands for status checks:**
+  ```typescript
+  // Check specific task status
+  mcp_vibe-kanban_get_task(task_id)
+  
+  // List all tasks by status
+  mcp_vibe-kanban_list_tasks(project_id, status: "in-review")
+  mcp_vibe-kanban_list_tasks(project_id, status: "in-progress")
+  ```
 - Status will change from `in-progress` → `in-review` when done
+- **Browser snapshots are only needed for:**
+  - Verifying executor model (checking for "Auto" vs "CODEX" in UI)
+  - Debugging executor issues
+  - Checking specific UI details not available in MCP response
 
 #### 4. Review Agent Work
 
