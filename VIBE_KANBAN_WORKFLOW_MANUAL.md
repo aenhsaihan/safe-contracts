@@ -112,12 +112,22 @@ mcp_vibe-kanban_get_task(task_id)
 ```
 
 **Available Agents (with API access):**
-- `CODEX` - Code completion focused
-- `CURSOR_AGENT` - General coding tasks
+- `CODEX` - Code completion focused, **RECOMMENDED DEFAULT**
+- `CURSOR_AGENT` - General coding tasks, **USE WITH CAUTION**
 
 **Agent Selection Guide:**
-- **CODEX**: Best for code completion, incremental changes, small fixes
-- **CURSOR_AGENT**: Best for setup, structure creation, full feature implementation
+- **CODEX**: **Default choice** - Works reliably for most tasks:
+  - Code generation and file creation
+  - Server utilities and helpers
+  - Test scripts
+  - Component creation
+  - Incremental changes and fixes
+  - **Always respects executor parameter** ✅
+- **CURSOR_AGENT**: Use only if necessary - **Known to default to "Auto"**:
+  - May ignore executor parameter ⚠️
+  - Requires immediate verification
+  - Often needs restart with CODEX
+  - **Not recommended for parallel execution**
 
 #### 2. Start Task Attempt
 
@@ -427,7 +437,49 @@ git merge --no-ff vk/branch-name
 - ✅ Can review multiple tasks simultaneously
 - ✅ Easy to test without affecting main
 
-### 2. Always Test Before Merge
+### 2. Parallel Task Execution
+
+**Best Practice: Use CODEX for Parallel Tasks**
+
+When running multiple tasks in parallel:
+- **Default to CODEX** for all parallel tasks
+- CURSOR_AGENT is unreliable and may default to "Auto" even in parallel execution
+- CODEX works consistently and reduces verification overhead
+- Each task runs in its own isolated worktree, so no conflicts
+
+**Verification for Parallel Tasks:**
+- Verify each task's executor immediately after starting (5-10 seconds)
+- Check UI for each task to confirm it's not using "Auto"
+- If any task shows "Auto", stop it and restart with CODEX
+- Don't assume parallel execution will work differently - same issues apply
+
+**Example:**
+```typescript
+// Start Task 1
+mcp_vibe-kanban_start_task_attempt(task1_id, "CODEX", "main")
+// Verify Task 1 executor in UI
+
+// Start Task 2
+mcp_vibe-kanban_start_task_attempt(task2_id, "CODEX", "main")  // Use CODEX, not CURSOR_AGENT
+// Verify Task 2 executor in UI
+
+// Both tasks run in parallel, both use CODEX reliably
+```
+
+**Why CODEX for Parallel:**
+- Reduces verification burden (no need to check for "Auto")
+- Consistent behavior across all tasks
+- Faster recovery if issues occur (just restart with CODEX)
+- Less cognitive overhead when managing multiple tasks
+
+**Real-World Example (November 16, 2025):**
+- Started 2 tasks in parallel: Task 1 (CODEX) ✅, Task 2 (CURSOR_AGENT) ⚠️
+- Task 1 worked correctly with CODEX
+- Task 2 defaulted to "Auto" despite specifying CURSOR_AGENT
+- Restarted Task 2 with CODEX - worked immediately ✅
+- **Lesson:** Use CODEX for all parallel tasks to avoid issues
+
+### 3. Always Test Before Merge
 
 ```bash
 # Test in worktree isolation
@@ -641,6 +693,13 @@ After documenting the first failure and implementing prevention steps, we attemp
 
 **Status:** ⚠️ **UNRESOLVED** - Executor parameter appears to be ignored by Vibe Kanban
 
+**Update (November 16, 2025 - Parallel Execution):**
+- Issue occurred again when running 2 tasks in parallel
+- Task 1 (CODEX) worked correctly ✅
+- Task 2 (CURSOR_AGENT) defaulted to "Auto" again ⚠️
+- Restarted Task 2 with CODEX - worked immediately ✅
+- **Conclusion:** CURSOR_AGENT is unreliable in both sequential and parallel execution
+
 ---
 
 ### Resolution: CODEX Works, CURSOR_AGENT May Not
@@ -691,11 +750,13 @@ After stopping the stuck attempt and resetting the task, we tried starting with 
   - Better for setting up project structure
   - **BUT:** Must verify it's not using "Auto" - if it does, switch to CODEX immediately
 
-**Best Practice:**
-1. Try CURSOR_AGENT first if it fits the task
-2. **Immediately verify** it's not using "Auto" (within 5-10 seconds)
-3. If "Auto" appears, stop and restart with CODEX
-4. CODEX is the reliable fallback that unblocks us when CURSOR_AGENT has issues
+**Best Practice (Updated November 16, 2025):**
+1. **Default to CODEX** for all tasks - it works reliably
+2. Only use CURSOR_AGENT if absolutely necessary
+3. **Immediately verify** CURSOR_AGENT is not using "Auto" (within 5-10 seconds)
+4. If "Auto" appears, stop and restart with CODEX
+5. **For parallel execution:** Use CODEX for all tasks to avoid verification overhead
+6. CODEX is the reliable default that prevents "Auto" issues
 
 **Updated Workflow:**
 1. Stop stuck attempt (via UI Stop button)
