@@ -58,6 +58,7 @@ export default function UploadForm({ exchangeId, currentUserId, counterpartyId }
         uploaderId: currentUserId,
         fileName: selectedFile.name || "unnamed-file",
         fileSize: selectedFile.size,
+        fileType: selectedFile.type || undefined,
         fileBase64,
       });
 
