@@ -526,6 +526,47 @@ After stopping the stuck attempt and resetting the task, we tried starting with 
 
 ---
 
+### User Experience Divergence: UI Verification Challenges
+
+**Fourth Attempt (November 16, 2025 - Same Day):**
+
+**What Happened:**
+After successfully restarting the task with CODEX, there was a divergence in what the user and assistant were seeing:
+- **Assistant's view:** Could see "model: gpt-5-codex" in the UI snapshot, confirming CODEX was working
+- **User's view:** Initially couldn't see the difference in their UI, thought it wasn't working
+- **Reality:** CODEX was actually working correctly all along
+
+**Why the Divergence Occurred:**
+1. **UI Refresh Timing:** The user's browser may not have refreshed immediately when the attempt started
+2. **Different Views:** The assistant was viewing the attempt detail page, while the user may have been on a different page (task list, etc.)
+3. **UI Loading States:** The "Loading draft…" and "DEFAULT" button may have appeared before the model indicator loaded
+4. **Visual Confirmation Needed:** The user needed to see active agent behavior (commands running, files being created) to confirm it was working
+
+**How We Aligned:**
+1. **Stopped and Restarted:** We stopped the attempt to verify the Stop button worked
+2. **Restarted with CODEX:** Started fresh with explicit CODEX executor
+3. **Verified in UI:** Both confirmed "model: gpt-5-codex" appeared in the attempt detail page
+4. **Observed Active Work:** Both saw the agent actively exploring the repository and preparing to create files
+
+**Key Lessons:**
+- **UI may lag:** The model indicator might not appear immediately - wait a few seconds
+- **Check the right page:** Make sure you're viewing the attempt detail page, not just the task list
+- **Look for activity:** Active agent behavior (commands, file operations) is a better indicator than just the model text
+- **Refresh if needed:** If unsure, refresh the browser or navigate to the attempt detail page
+- **Verify in detail view:** The model indicator ("model: gpt-5-codex" or "System initialized with model: Auto") appears in the attempt detail view, not always in the task list
+
+**Verification Checklist:**
+- [ ] Navigate to the attempt detail page (click on the attempt in the attempts list)
+- [ ] Wait 3-5 seconds for UI to load
+- [ ] Look for "model: gpt-5-codex" or "model: gpt-4-codex" (CODEX working) OR "System initialized with model: Auto" (problem)
+- [ ] Check for active agent behavior (commands running, files being created)
+- [ ] If you see "Auto", stop immediately and restart with CODEX
+- [ ] If you see "gpt-5-codex" or "gpt-4-codex", the agent is working correctly
+
+**Status:** ✅ **RESOLVED** - Both user and assistant can now verify CODEX is working via UI
+
+---
+
 ## Quick Reference
 
 ### MCP Functions
