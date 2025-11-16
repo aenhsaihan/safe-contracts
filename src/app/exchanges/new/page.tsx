@@ -59,15 +59,16 @@ async function createExchangeAction(
   const dataClient = getDataClientServerSide();
 
   try {
-    const creationResult = await runWithAmplifyServerContext(async () =>
-      dataClient.models.ContractExchange.create({
-        title: normalizedTitle,
-        partyAId,
-        partyBId: normalizedPartyBEmail,
-        createdById: partyAId,
-        status: "PENDING",
-      })
-    );
+    const creationResult = await runWithAmplifyServerContext({
+      operation: async () =>
+        dataClient.models.ContractExchange.create({
+          title: normalizedTitle,
+          partyAId,
+          partyBId: normalizedPartyBEmail,
+          createdById: partyAId,
+          status: "PENDING",
+        }),
+    });
 
     if (creationResult.errors?.length) {
       return {

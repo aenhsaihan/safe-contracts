@@ -34,9 +34,27 @@ export function runWithAmplifyServerContext<Result>({
 
 /**
  * Returns the signed-in Cognito user within a server component or action.
+ * Returns null if auth is not configured or user is not signed in.
  */
 export async function getCurrentUserServerSide() {
-  return runWithAmplifyServerContext((contextSpec) => getCurrentUser(contextSpec));
+  try {
+    return await runWithAmplifyServerContext({
+      operation: (contextSpec) => getCurrentUser(contextSpec),
+    });
+  } catch (error) {
+    // If auth is not configured or user is not signed in, return null
+    // This allows pages to load even when auth isn't fully set up
+    if (
+      error instanceof Error &&
+      (error.message.includes("not configured") ||
+        error.message.includes("UserPool") ||
+        error.message.includes("No current user"))
+    ) {
+      return null;
+    }
+    // Re-throw other errors
+    throw error;
+  }
 }
 
 /**
@@ -95,9 +113,9 @@ export async function invokeContractsFunction<Operation extends ContractsFunctio
 }): Promise<ContractsFunctionOperationMap[Operation]["output"]> {
   const contractsFunctionUrl = resolveContractsFunctionUrl();
 
-  const { tokens } = await runWithAmplifyServerContext((contextSpec) =>
-    fetchAuthSession(contextSpec)
-  );
+  const { tokens } = await runWithAmplifyServerContext({
+    operation: (contextSpec) => fetchAuthSession(contextSpec),
+  });
   const authorization = tokens?.idToken?.toString() ?? tokens?.accessToken?.toString();
 
   const response = await fetch(contractsFunctionUrl, {

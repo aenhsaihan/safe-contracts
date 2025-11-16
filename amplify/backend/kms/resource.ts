@@ -1,4 +1,4 @@
-import { Stack, CfnOutput } from 'aws-cdk-lib';
+import { Stack } from 'aws-cdk-lib';
 import { Key, Alias } from 'aws-cdk-lib/aws-kms';
 
 /**
@@ -23,19 +23,9 @@ export function defineKMS(stack: Stack) {
     targetKey: key,
   });
 
-  // Export key ID and ARN as stack outputs
-  // These will be available for the Lambda function
-  new CfnOutput(stack, 'SafeContractsMasterKeyId', {
-    value: key.keyId,
-    description: 'KMS CMK key ID for envelope encryption',
-    exportName: 'SafeContractsMasterKeyId',
-  });
-
-  new CfnOutput(stack, 'SafeContractsMasterKeyArn', {
-    value: key.keyArn,
-    description: 'KMS CMK ARN for envelope encryption',
-    exportName: 'SafeContractsMasterKeyArn',
-  });
+  // Note: CfnOutput removed temporarily to allow amplify_outputs.json generation
+  // Key alias: alias/safe-contracts-master-key (can be used directly)
+  // Key ID and ARN can be accessed via CloudFormation stack outputs if needed
 
   return key;
 }

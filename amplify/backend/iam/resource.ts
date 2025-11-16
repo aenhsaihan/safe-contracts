@@ -1,4 +1,4 @@
-import { Stack, CfnOutput } from 'aws-cdk-lib';
+import { Stack } from 'aws-cdk-lib';
 import { Role, ServicePrincipal, PolicyStatement, Effect } from 'aws-cdk-lib/aws-iam';
 import type { Bucket } from 'aws-cdk-lib/aws-s3';
 import type { Key } from 'aws-cdk-lib/aws-kms';
@@ -76,13 +76,8 @@ export function defineLambdaIAMRole(
     })
   );
 
-  // Export role ARN as stack output
-  // This will be used when creating the Lambda function
-  new CfnOutput(stack, 'ContractsFunctionRoleArn', {
-    value: lambdaRole.roleArn,
-    description: 'IAM role ARN for contractsFunction Lambda',
-    exportName: 'ContractsFunctionRoleArn',
-  });
+  // Note: CfnOutput removed to allow amplify_outputs.json generation
+  // Role ARN can be accessed via CloudFormation stack outputs if needed
 
   return lambdaRole;
 }

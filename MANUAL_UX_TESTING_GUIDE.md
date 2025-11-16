@@ -8,6 +8,214 @@ This guide walks you through testing the SafeContracts application as a regular 
 2. **AWS Credentials** - Your `.env` file should have valid AWS credentials
 3. **Dependencies Installed** - Run `npm install` if you haven't already
 
+## Post-Development Issues and Solutions
+
+After completing the initial development, we encountered several issues when trying to run the application. This section documents those issues, why they occurred, how we fixed them, and how to avoid them in the future.
+
+### Issue 1: Build Error - `runWithAmplifyServerContext` Import Error
+
+**Problem:**
+```
+Export runWithAmplifyServerContext doesn't exist in target module
+```
+
+**Why it happened:**
+- The `Auth.tsx` component was trying to import `runWithAmplifyServerContext` directly from `@aws-amplify/adapter-nextjs`
+- However, this export doesn't exist in that package - it needs to be imported from our own wrapper module
+
+**How we fixed it:**
+- Changed the import in `src/components/auth/Auth.tsx` from:
+  ```typescript
+  import { runWithAmplifyServerContext } from "@aws-amplify/adapter-nextjs";
+  ```
+- To:
+  ```typescript
+  import { runWithAmplifyServerContext } from "@/lib/amplify-server";
+  ```
+- Our `amplify-server.ts` module wraps `createServerRunner` and exports `runWithAmplifyServerContext`
+
+**How to avoid:**
+- Always import `runWithAmplifyServerContext` from `@/lib/amplify-server`, not directly from Amplify packages
+- Use the centralized server-side utilities in `src/lib/amplify-server.ts`
+
+---
+
+### Issue 2: Runtime Error - `createContext` Only Works in Client Components
+
+**Problem:**
+```
+createContext only works in Client Components. Add the "use client" directive
+```
+
+**Why it happened:**
+- The `Auth.tsx` component was using `Authenticator.Provider` which uses React's `createContext`
+- `createContext` is a client-side API and cannot be used in Server Components
+- Next.js App Router components are Server Components by default
+
+**How we fixed it:**
+- Added `"use client"` directive at the top of `src/components/auth/Auth.tsx`
+- Removed server-side code (`runWithAmplifyServerContext`) from the client component
+- Simplified the component to only wrap children with `Authenticator.Provider`
+
+**How to avoid:**
+- Always add `"use client"` to components that use:
+  - React Context (`createContext`, `useContext`)
+  - Browser APIs (`localStorage`, `window`, etc.)
+  - Event handlers (`onClick`, `onChange`, etc.)
+  - State hooks (`useState`, `useEffect`, etc.)
+- Keep server-side logic in Server Components or Server Actions
+
+---
+
+### Issue 3: Runtime Error - `operation is not a function`
+
+**Problem:**
+```
+TypeError: operation is not a function
+```
+
+**Why it happened:**
+- Multiple places in the codebase were calling `runWithAmplifyServerContext` with a function directly:
+  ```typescript
+  runWithAmplifyServerContext((contextSpec) => getCurrentUser(contextSpec))
+  ```
+- But `runWithAmplifyServerContext` expects an object with an `operation` property:
+  ```typescript
+  runWithAmplifyServerContext({ operation: (contextSpec) => ... })
+  ```
+
+**How we fixed it:**
+- Updated all calls to use the correct object syntax:
+  ```typescript
+  // ❌ Wrong
+  runWithAmplifyServerContext((contextSpec) => getCurrentUser(contextSpec))
+  
+  // ✅ Correct
+  runWithAmplifyServerContext({
+    operation: (contextSpec) => getCurrentUser(contextSpec),
+  })
+  ```
+- Fixed in:
+  - `src/lib/amplify-server.ts` - `getCurrentUserServerSide()` and `invokeContractsFunction()`
+  - `src/app/exchanges/new/page.tsx` - `createExchangeAction()`
+
+**How to avoid:**
+- Always use the object syntax: `{ operation: ... }` when calling `runWithAmplifyServerContext`
+- Check the function signature before using it
+- Use TypeScript types to catch these errors at compile time
+
+---
+
+### Issue 4: Amplify Gen 2 Output Generation Bug (ZodError)
+
+**Problem:**
+```
+Amplify outputs could not be generated. [ZodError]
+- AWS::Amplify::Platform - expected object, received string
+- AWS::Amplify::GraphQL - expected object, received string
+- AWS::Amplify::Auth - expected object, received string
+```
+
+**Why it happened:**
+- This is a **known bug in Amplify Gen 2 v1.8.0**
+- The sandbox deployment succeeds, but output generation fails when reading CloudFormation stack outputs
+- Amplify's output generator expects objects but receives strings from CloudFormation
+- This happens even without custom `CfnOutput` statements (we tested removing all of them)
+
+**How we fixed it:**
+1. **Manual `amplify_outputs.json` creation:**
+   - Got Cognito User Pool details from AWS Console:
+     - User Pool ID: `ap-southeast-2_fRmaieSLe`
+     - App Client ID: `2t4vc8odv54p96ciluhj5bcv4s`
+   - Got AppSync endpoint from sandbox terminal output
+   - Manually created `amplify_outputs.json` with correct values
+
+2. **Added multiple auth field formats for compatibility:**
+   ```json
+   {
+     "auth": {
+       "userPoolId": "...",
+       "webClientId": "...",
+       "aws_user_pools_id": "...",
+       "aws_user_pools_web_client_id": "...",
+       "Cognito": { ... }
+     }
+   }
+   ```
+
+3. **Added graceful error handling:**
+   - Updated `getCurrentUserServerSide()` to catch auth config errors
+   - Returns `null` instead of throwing, allowing pages to load
+
+**How to avoid:**
+- **Short-term:** Manually create `amplify_outputs.json` if output generation fails
+- **Long-term:** 
+  - Report the bug to AWS Amplify team (GitHub issues or support ticket)
+  - Monitor Amplify CLI updates for fixes
+  - Consider using environment variables as a workaround
+  - Keep error handling in place to gracefully handle missing auth config
+
+**Workaround Steps (if you encounter this):**
+1. Deploy succeeds but `amplify_outputs.json` is empty or missing
+2. Go to AWS Console → Cognito → User Pools
+3. Find your User Pool and note:
+   - User Pool ID
+   - App Client ID (from "App integration" → "App clients")
+4. Get AppSync endpoint from sandbox terminal output
+5. Manually create `amplify_outputs.json` using the template in `FIX_AMPLIFY_OUTPUTS.md`
+6. Add error handling to server-side auth calls
+
+---
+
+### Issue 5: Runtime Error - "Auth UserPool not configured"
+
+**Problem:**
+```
+Runtime AuthUserPoolException: Auth UserPool not configured
+```
+
+**Why it happened:**
+- Even after manually creating `amplify_outputs.json`, the server-side code was still throwing errors
+- The auth configuration format might not match what Amplify Gen 2 expects
+- Server-side `getCurrentUser()` was being called before auth was properly configured
+
+**How we fixed it:**
+1. **Added multiple auth field formats** to `amplify_outputs.json` for compatibility
+2. **Added error handling** in `getCurrentUserServerSide()`:
+   ```typescript
+   try {
+     return await runWithAmplifyServerContext({
+       operation: (contextSpec) => getCurrentUser(contextSpec),
+     });
+   } catch (error) {
+     if (error.message.includes("not configured") || 
+         error.message.includes("UserPool")) {
+       return null; // Gracefully handle missing auth config
+     }
+     throw error;
+   }
+   ```
+3. This allows pages to load even if auth isn't fully configured (shows as "not signed in")
+
+**How to avoid:**
+- Always add error handling for auth operations in server components
+- Don't assume auth is always configured - handle the null case
+- Test with and without auth configuration
+- Use TypeScript to make auth state explicit (nullable types)
+
+---
+
+## Summary of Lessons Learned
+
+1. **Import paths matter:** Always use centralized utility modules, not direct package imports
+2. **Client vs Server Components:** Understand Next.js App Router component types
+3. **API signatures:** Always check function signatures and use correct parameter formats
+4. **Amplify Gen 2 bugs:** Be aware of known issues and have workarounds ready
+5. **Error handling:** Always add graceful error handling, especially for auth operations
+6. **Manual configuration:** Sometimes manual config files are necessary when tooling fails
+
+---
+
 ## Step 1: Start the Backend (Amplify Sandbox)
 
 The backend provides:
@@ -253,10 +461,29 @@ When done testing:
 ### Issue: "Unable to resolve contracts function URL"
 - **Solution:** Ensure the sandbox has fully deployed and `amplify_outputs.json` exists
 - Check that the Lambda function was created successfully
+- See **Issue 4** in "Post-Development Issues" if `amplify_outputs.json` is missing
 
 ### Issue: "Sign in page shows errors"
 - **Solution:** Verify Cognito is configured correctly in `amplify/auth/resource.ts`
 - Check that the sandbox deployed the auth resources
+- If you see "Auth UserPool not configured", see **Issue 5** in "Post-Development Issues"
+
+### Issue: "amplify_outputs.json is empty or missing"
+- **Solution:** This is likely the Amplify Gen 2 output generation bug (see **Issue 4**)
+- Follow the workaround steps in "Post-Development Issues" to manually create the file
+- Check `FIX_AMPLIFY_OUTPUTS.md` for detailed instructions
+
+### Issue: "Build errors about runWithAmplifyServerContext"
+- **Solution:** See **Issue 1** in "Post-Development Issues"
+- Ensure you're importing from `@/lib/amplify-server`, not directly from Amplify packages
+
+### Issue: "Runtime error: createContext only works in Client Components"
+- **Solution:** See **Issue 2** in "Post-Development Issues"
+- Add `"use client"` directive to components using React Context
+
+### Issue: "Runtime error: operation is not a function"
+- **Solution:** See **Issue 3** in "Post-Development Issues"
+- Use object syntax: `{ operation: ... }` when calling `runWithAmplifyServerContext`
 
 ### Issue: "Can't see my exchanges"
 - **Solution:** Verify you're signed in (check NavBar for username)

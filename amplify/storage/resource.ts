@@ -1,4 +1,4 @@
-import { Stack, CfnOutput } from 'aws-cdk-lib';
+import { Stack } from 'aws-cdk-lib';
 import { Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 
 /**
@@ -22,19 +22,9 @@ export function defineStorage(stack: Stack) {
     },
   });
 
-  // Export bucket name and ARN as stack outputs
-  // These will be available in amplify_outputs.json
-  new CfnOutput(stack, 'SafeContractsBucketName', {
-    value: bucket.bucketName,
-    description: 'S3 bucket name for encrypted contract files',
-    exportName: 'SafeContractsBucketName',
-  });
-
-  new CfnOutput(stack, 'SafeContractsBucketArn', {
-    value: bucket.bucketArn,
-    description: 'S3 bucket ARN for encrypted contract files',
-    exportName: 'SafeContractsBucketArn',
-  });
+  // Note: CfnOutput removed temporarily to allow amplify_outputs.json generation
+  // Bucket name can be accessed via: safe-contracts-encrypted-{account}-{region}
+  // Or via CloudFormation stack outputs if needed
 
   return bucket;
 }

@@ -1,8 +1,7 @@
-import { runWithAmplifyServerContext } from "@aws-amplify/adapter-nextjs";
+"use client";
+
 import { Authenticator } from "@aws-amplify/ui-react";
-import { fetchAuthSession } from "aws-amplify/auth";
 import { Amplify } from "aws-amplify";
-import { cookies } from "next/headers";
 import { ReactNode } from "react";
 import amplifyOutputs from "../../../amplify_outputs.json";
 
@@ -12,13 +11,6 @@ type AuthProps = {
   children: ReactNode;
 };
 
-export async function Auth({ children }: AuthProps) {
-  await runWithAmplifyServerContext({
-    nextServerContext: { cookies },
-    operation: async (contextSpec) => {
-      await fetchAuthSession(contextSpec);
-    },
-  });
-
+export function Auth({ children }: AuthProps) {
   return <Authenticator.Provider>{children}</Authenticator.Provider>;
 }
