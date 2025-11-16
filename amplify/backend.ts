@@ -67,11 +67,18 @@ cfnUrl.addPropertyOverride('Cors', {
   AllowHeaders: ['*'],
 });
 
-// Grant invoke permission to all principals (since auth is handled by Lambda code)
-lambdaFunction.addPermission('AllowPublicInvoke', {
+// Grant invoke permissions to all principals (since auth is handled by Lambda code)
+// Need both lambda:InvokeFunctionUrl and lambda:InvokeFunction permissions
+lambdaFunction.addPermission('AllowPublicInvokeURL', {
   principal: new AnyPrincipal(),
   action: 'lambda:InvokeFunctionUrl',
   functionUrlAuthType: FunctionUrlAuthType.NONE,
+});
+
+lambdaFunction.addPermission('AllowPublicInvokeFunction', {
+  principal: new AnyPrincipal(),
+  action: 'lambda:InvokeFunction',
+  sourceArn: functionUrl.url,
 });
 
 // Export the function URL to custom outputs so it's available in amplify_outputs.json
