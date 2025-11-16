@@ -198,22 +198,70 @@ npx ampx sandbox --once
 - ✅ Can fix issues in branch before merge
 - ✅ Maintains clean main branch
 
+#### 5. Review & Test
+
+**Best Practice: Review in Worktree Without Switching Main Branch**
+
+You can review the code directly from the worktree path without ever leaving the main branch:
+
+```bash
+# Review from worktree path (no need to cd or switch branches)
+# Use absolute path to worktree for all review operations
+
+# Check what was created
+cd /path/to/worktree
+git status
+git diff main
+git log --oneline -3
+
+# Read files directly from worktree (using absolute paths)
+cat /path/to/worktree/src/components/auth/Auth.tsx
+
+# Test the code (if needed)
+cd /path/to/worktree
+npm install  # if needed
+npm run build  # if applicable
+npm test  # if applicable
+
+# Check file structure
+ls -la /path/to/worktree/src/components/...
+```
+
+**Key Benefits:**
+- ✅ **Main branch stays clean** - never switch away from main
+- ✅ **Isolated review** - all review happens in worktree
+- ✅ **No branch switching** - use absolute paths to read files
+- ✅ **Parallel reviews** - can review multiple tasks independently
+- ✅ **Safe testing** - test in worktree without affecting main
+
+**Review Checklist:**
+- [ ] Check git status in worktree
+- [ ] Review files created/modified
+- [ ] Verify code quality and structure
+- [ ] Check for TypeScript/compilation errors (if applicable)
+- [ ] Verify dependencies are correct
+- [ ] Test functionality (if applicable)
+- [ ] Ensure no unintended files (like manual updates) are included
+
 #### 6. Merge to Main
 
 ```bash
-# Switch to main
+# From main branch, merge the worktree branch
 cd /path/to/main/repo
-git checkout main
-
-# Merge the branch
-git merge vk/{attempt-id}-{task-slug} --no-ff -m "feat: descriptive commit message"
+git merge --no-ff vk/{attempt-id}-{task-slug} -m "feat: description of changes"
 
 # Verify merge
 git log --oneline -3
-ls -la amplify/backend/functions/...
+ls -la src/components/...  # verify files are there
 ```
 
-#### 7. Cleanup
+**Merge Best Practices:**
+- Use `--no-ff` to preserve branch history
+- Write descriptive commit messages
+- Verify files are correctly merged
+- Check that no unintended files (like manual updates) are included
+
+#### 7. Cleanup Worktree & Branch
 
 ```bash
 # Remove worktree
