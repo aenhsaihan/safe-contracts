@@ -14,6 +14,15 @@ This manual documents the established workflow for using Vibe Kanban MCP with Cu
 1. [Initial Setup & Connection](#initial-setup--connection)
 2. [Initial Issues & Solutions](#initial-issues--solutions)
 3. [Finalized Workflow](#finalized-workflow)
+   - [Planning Phase](#0-planning-phase-optional-but-recommended)
+   - [Task Selection & Agent Assessment](#1-task-selection--agent-assessment)
+   - [Starting Tasks](#2-start-task-attempt)
+   - [Monitoring Progress](#3-monitor-task-progress)
+   - [Reviewing Work](#4-review-agent-work)
+   - [Testing](#5-test-in-isolation-before-merge)
+   - [Merging](#6-merge-to-main)
+   - [Cleanup](#7-cleanup-worktree--branch)
+   - [Updating Kanban](#10-update-kanban)
 4. [Agent Selection Guide](#agent-selection-guide)
 5. [Best Practices](#best-practices)
 6. [Troubleshooting](#troubleshooting)
@@ -96,6 +105,54 @@ Vibe Kanban MCP server configuration in Cursor settings:
 ## Finalized Workflow
 
 ### Step-by-Step Process
+
+#### 0. Planning Phase (Optional but Recommended)
+
+**Best Practice: Create Implementation Plan First**
+
+Before creating tasks, it's helpful to create a comprehensive implementation plan that maps out the architecture and phases:
+
+1. **Create Plan Document:**
+   - Use plan feature to map out project architecture
+   - Break down into phases and sub-tasks
+   - Document dependencies and relationships
+   - Example: `safecontracts-mvp-implementation.plan.md`
+
+2. **Plan Structure:**
+   - High-level architecture overview
+   - Phase-by-phase breakdown
+   - Task dependencies
+   - File structure
+   - Implementation notes
+
+3. **Create Kanban Tasks from Plan:**
+   - Review plan phases
+   - Create tasks for each phase/sub-task
+   - Use plan as reference for task descriptions
+   - Maintain plan as tasks are completed
+
+**Benefits:**
+- Clear roadmap before starting
+- Better task organization
+- Easier to identify dependencies
+- Can track progress against plan
+- Plan serves as documentation
+
+**Example:**
+```
+1. Create plan: safecontracts-mvp-implementation.plan.md
+   - Phase 1: Project Setup & Infrastructure
+   - Phase 2: Data Models
+   - Phase 3: Lambda Function
+   - etc.
+
+2. Create kanban tasks from plan:
+   - Task: "Create S3 bucket resource with versioning" (Phase 1.2)
+   - Task: "Define ContractExchange and ContractFile data models" (Phase 2.1)
+   - etc.
+
+3. Execute tasks, update plan as you go
+```
 
 #### 1. Task Selection & Agent Assessment
 
