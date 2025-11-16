@@ -52,8 +52,8 @@ cfnFunction.environment = {
 };
 
 // Add function URL for HTTP access (NONE auth since Lambda validates Cognito tokens)
-// Create FunctionUrl directly using CDK construct
-const functionUrl = new FunctionUrl(stack, 'ContractsFunctionUrl', {
+// Create FunctionUrl directly using CDK construct with unique ID
+const functionUrl = new FunctionUrl(stack, 'ContractsFunctionUrlConstruct', {
   function: lambdaFunction,
   authType: FunctionUrlAuthType.NONE,
 });
@@ -62,7 +62,7 @@ const functionUrl = new FunctionUrl(stack, 'ContractsFunctionUrl', {
 // This will be available in the stack outputs and can be manually added to amplify_outputs.json
 // Note: There's a known bug in Amplify Gen 2 v1.8.0 that prevents automatic generation of amplify_outputs.json
 // The function URL will be available via the stack outputs or can be manually added to amplify_outputs.json
-new CfnOutput(stack, 'ContractsFunctionUrl', {
+new CfnOutput(stack, 'ContractsFunctionUrlOutput', {
   value: functionUrl.url,
   description: 'URL for the contractsFunction Lambda function',
   exportName: 'ContractsFunctionUrl',
