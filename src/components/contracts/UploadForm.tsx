@@ -1,96 +1,133 @@
-'use client';
+"use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 
-type UploadFormProps = {
-  title?: string;
-  description?: string;
-  accept?: string;
-  multiple?: boolean;
-  isSubmitting?: boolean;
-  helperText?: string;
-  onSubmit?: (payload: { file: File | null; files: File[]; notes: string }) => void;
-};
+type OwnerSelection = "MY_COPY" | "THEIR_COPY";
 
-export function UploadForm({
-  title = "Upload contract",
-  description = "Attach a draft agreement or supporting document to keep everything in one place.",
-  accept,
-  multiple,
-  isSubmitting,
-  helperText = "PDF, DOCX, or ZIP up to 25 MB.",
-  onSubmit,
-}: UploadFormProps) {
-  const [files, setFiles] = useState<File[]>([]);
-  const [notes, setNotes] = useState("");
+interface UploadFormProps {
+  onUpload: (input: { file: File; owner: OwnerSelection }) => Promise<{
+    hashHex: string;
+  }>;
+}
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+export default function UploadForm({ onUpload }: UploadFormProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedOwner, setSelectedOwner] = useState<OwnerSelection>("MY_COPY");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hashHex, setHashHex] = useState<string | null>(null);
+
+  const hashSnippet = useMemo(() => {
+    if (!hashHex) {
+      return null;
+    }
+    return `${hashHex.slice(0, 8)}...${hashHex.slice(-4)}`;
+  }, [hashHex]);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onSubmit?.({ file: files[0] ?? null, files, notes });
+    if (!selectedFile) {
+      setError("Select a file before uploading.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+    setHashHex(null);
+
+    try {
+      const result = await onUpload({
+        file: selectedFile,
+        owner: selectedOwner,
+      });
+      setHashHex(result.hashHex);
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Upload failed. Try again shortly.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <form
+      className="space-y-4 rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-sm backdrop-blur"
       onSubmit={handleSubmit}
-      className="space-y-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm"
     >
       <div>
-        <p className="text-sm uppercase tracking-wide text-zinc-400">Contracts</p>
-        <h3 className="text-xl font-semibold text-zinc-900">{title}</h3>
-        {description ? <p className="mt-2 text-sm text-zinc-600">{description}</p> : null}
+        <p className="text-sm font-semibold text-zinc-900">Upload encrypted file</p>
+        <p className="text-sm text-zinc-500">
+          Files are wrapped by KMS envelope encryption before leaving your browser.
+        </p>
       </div>
 
-      <label className="block rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center transition hover:border-zinc-400">
+      <label className="flex flex-col gap-2 text-sm font-medium text-zinc-600">
+        Select file
         <input
+          ref={fileInputRef}
           type="file"
-          className="sr-only"
-          accept={accept}
-          multiple={multiple}
+          className="rounded-lg border border-dashed border-zinc-300 bg-white px-4 py-3 text-sm font-normal text-zinc-700 focus:border-sky-500 focus:outline-none"
           onChange={(event) => {
-            const selectedFiles = Array.from(event.target.files ?? []);
-            setFiles(selectedFiles);
+            const file = event.target.files?.[0] ?? null;
+            setSelectedFile(file);
+            setError(null);
+            setHashHex(null);
           }}
         />
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-zinc-800">Click to select a file</p>
-          <p className="text-xs text-zinc-500">{helperText}</p>
-          {files.length ? (
-            <div className="rounded-lg bg-white px-3 py-2 text-sm text-zinc-700 shadow-sm">
-              {files.length === 1 ? files[0].name : `${files.length} files selected`}
-            </div>
-          ) : null}
-        </div>
       </label>
 
-      <div>
-        <label htmlFor="upload-notes" className="text-sm font-medium text-zinc-800">
-          Notes
-        </label>
-        <p className="text-xs text-zinc-500">Add context for reviewers (optional).</p>
-        <textarea
-          id="upload-notes"
-          rows={4}
-          className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          placeholder="Share negotiation history, blocking issues, or signature requirements."
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-        />
-      </div>
+      <fieldset className="rounded-lg border border-zinc-200 p-3">
+        <legend className="px-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          Ownership
+        </legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700">
+            <input
+              type="radio"
+              name="owner"
+              value="MY_COPY"
+              checked={selectedOwner === "MY_COPY"}
+              onChange={() => setSelectedOwner("MY_COPY")}
+            />
+            My copy
+          </label>
+          <label className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700">
+            <input
+              type="radio"
+              name="owner"
+              value="THEIR_COPY"
+              checked={selectedOwner === "THEIR_COPY"}
+              onChange={() => setSelectedOwner("THEIR_COPY")}
+            />
+            Counterparty copy
+          </label>
+        </div>
+      </fieldset>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        {files.length ? (
-          <p className="text-sm text-zinc-500">Ready to upload {files.length} file(s).</p>
-        ) : (
-          <p className="text-sm text-zinc-500">You can submit without notes to keep a placeholder.</p>
-        )}
-        <button
-          type="submit"
-          className="inline-flex items-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? "Uploading…" : "Upload"}
-        </button>
-      </div>
+      <button
+        type="submit"
+        disabled={!selectedFile || isSubmitting}
+        className="w-full rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-200"
+      >
+        {isSubmitting ? "Encrypting..." : "Upload with KMS envelope"}
+      </button>
+
+      {error && <p className="text-sm text-rose-600">{error}</p>}
+
+      {hashSnippet && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <p className="font-semibold">File stored with KMS envelope encryption</p>
+          <p className="mt-1 font-mono text-xs tracking-wide">
+            SHA-256: {hashSnippet}
+          </p>
+        </div>
+      )}
     </form>
   );
 }
