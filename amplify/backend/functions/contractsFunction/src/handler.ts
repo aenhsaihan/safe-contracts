@@ -135,6 +135,12 @@ type LambdaResponseBody = {
 export const handler = async (
   event: APIGatewayProxyEventV2,
 ): Promise<APIGatewayProxyResultV2> => {
+  // Log incoming request for debugging
+  console.log('[contractsFunction] Request method:', event.requestContext.http.method);
+  console.log('[contractsFunction] Request path:', event.rawPath);
+  console.log('[contractsFunction] Has authorization header:', !!extractAuthorizationHeader(event));
+  console.log('[contractsFunction] Request headers:', JSON.stringify(event.headers, null, 2));
+
   // Handle CORS preflight requests
   if (event.requestContext.http.method === 'OPTIONS') {
     return jsonResponse({}, 200);

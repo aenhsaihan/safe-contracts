@@ -131,20 +131,30 @@ export async function invokeContractsFunction<Operation extends ContractsFunctio
   // The function URL doesn't validate tokens, so we just pass it through
   const authorization = tokens?.idToken?.toString() ?? tokens?.accessToken?.toString();
 
+  const requestBody = JSON.stringify({
+    operation,
+    payload,
+  });
+
+  console.log('[invokeContractsFunction] Calling function URL:', contractsFunctionUrl);
+  console.log('[invokeContractsFunction] Has authorization token:', !!authorization);
+  console.log('[invokeContractsFunction] Request body size:', requestBody.length);
+
   const response = await fetch(contractsFunctionUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(authorization ? { Authorization: authorization } : {}),
     },
-    body: JSON.stringify({
-      operation,
-      payload,
-    }),
+    body: requestBody,
   });
+
+  console.log('[invokeContractsFunction] Response status:', response.status, response.statusText);
+  console.log('[invokeContractsFunction] Response headers:', Object.fromEntries(response.headers.entries()));
 
   if (!response.ok) {
     const errorBody = await response.text();
+    console.error('[invokeContractsFunction] Error response body:', errorBody);
     throw new Error(
       `contractsFunction invocation failed with ${response.status} ${response.statusText}: ${errorBody}`
     );
