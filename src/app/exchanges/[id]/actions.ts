@@ -1,3 +1,5 @@
+"use server";
+
 import { revalidatePath } from "next/cache";
 
 import {
@@ -55,8 +57,6 @@ type UploadActionInput = UploadInput & {
 };
 
 export async function uploadExchangeFileAction(input: UploadActionInput): Promise<UploadResult> {
-  "use server";
-
   const { payload, description } = validateAndNormalizeUploadInput(input);
 
   const currentUser = await getCurrentUserServerSide();
@@ -104,8 +104,6 @@ export async function downloadExchangeFileAction(input: {
   exchangeId: string;
   fileId: string;
 }): Promise<DownloadResult> {
-  "use server";
-
   const currentUser = await getCurrentUserServerSide();
   const currentUserId = currentUser?.userId;
 
