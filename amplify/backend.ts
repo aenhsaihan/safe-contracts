@@ -1,5 +1,5 @@
 import { defineBackend } from '@aws-amplify/backend';
-import { Stack } from 'aws-cdk-lib';
+import { Stack, CfnOutput } from 'aws-cdk-lib';
 import { FunctionUrlAuthType, FunctionUrl } from 'aws-cdk-lib/aws-lambda';
 import { CfnFunction } from 'aws-cdk-lib/aws-lambda';
 import { auth } from './auth/resource';
@@ -58,9 +58,12 @@ const functionUrl = new FunctionUrl(stack, 'ContractsFunctionUrl', {
   authType: FunctionUrlAuthType.NONE,
 });
 
-// Export the function URL to custom outputs so it's available in amplify_outputs.json
-backend.addOutput({
-  custom: {
-    contractsFunctionUrl: functionUrl.url,
-  },
+// Export the function URL using CloudFormation output
+// This will be available in the stack outputs and can be manually added to amplify_outputs.json
+// Note: There's a known bug in Amplify Gen 2 v1.8.0 that prevents automatic generation of amplify_outputs.json
+// The function URL will be available via the stack outputs or can be manually added to amplify_outputs.json
+new CfnOutput(stack, 'ContractsFunctionUrl', {
+  value: functionUrl.url,
+  description: 'URL for the contractsFunction Lambda function',
+  exportName: 'ContractsFunctionUrl',
 });
