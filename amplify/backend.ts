@@ -67,18 +67,26 @@ cfnUrl.addPropertyOverride('Cors', {
   AllowHeaders: ['*'],
 });
 
+// Add resource-based policy directly to the function URL
+// AWS requires both lambda:InvokeFunctionUrl and lambda:InvokeFunction permissions
+// We need to add this as a resource-based policy on the function URL itself
+cfnUrl.addPropertyOverride('InvokeMode', 'BUFFERED');
+cfnUrl.addPropertyOverride('AuthType', 'NONE');
+
 // Grant invoke permissions to all principals (since auth is handled by Lambda code)
-// Need both lambda:InvokeFunctionUrl and lambda:InvokeFunction permissions
+// AWS requires both lambda:InvokeFunctionUrl and lambda:InvokeFunction permissions
+// For FunctionUrlAuthType.NONE, both permissions need the functionUrlAuthType condition
 lambdaFunction.addPermission('AllowPublicInvokeURL', {
   principal: new AnyPrincipal(),
   action: 'lambda:InvokeFunctionUrl',
   functionUrlAuthType: FunctionUrlAuthType.NONE,
 });
 
+// Second permission for lambda:InvokeFunction - also needs functionUrlAuthType condition
 lambdaFunction.addPermission('AllowPublicInvokeFunction', {
   principal: new AnyPrincipal(),
   action: 'lambda:InvokeFunction',
-  sourceArn: functionUrl.url,
+  functionUrlAuthType: FunctionUrlAuthType.NONE,
 });
 
 // Export the function URL to custom outputs so it's available in amplify_outputs.json
