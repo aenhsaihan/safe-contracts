@@ -490,6 +490,42 @@ After documenting the first failure and implementing prevention steps, we attemp
 
 ---
 
+### Resolution: CODEX Works, CURSOR_AGENT May Not
+
+**Third Attempt (November 16, 2025 - Same Day):**
+
+**What Happened:**
+After stopping the stuck attempt and resetting the task, we tried starting with `CODEX` executor (which worked successfully for Task 1).
+
+**Result:** ✅ **SUCCESS!** The attempt shows "model: gpt-5-codex" in the UI and the agent is actively working.
+
+**Key Discovery:**
+- **CODEX executor works correctly** when specified via `start_task_attempt`
+- **CURSOR_AGENT may have issues** - all attempts with CURSOR_AGENT defaulted to "Auto"
+- The executor parameter **does work**, but only for certain executors (CODEX)
+
+**Why This Matters:**
+- Not all executors behave the same way
+- CODEX appears to respect the executor parameter
+- CURSOR_AGENT may ignore it or have a bug
+
+**Solution:**
+- **Use CODEX for tasks** until CURSOR_AGENT executor issue is resolved
+- If CURSOR_AGENT is needed, verify it's actually using the specified model
+- Document which executors work correctly
+
+**Updated Workflow:**
+1. Stop stuck attempt (via UI Stop button)
+2. Reset task to "todo"
+3. Clean up old worktree
+4. Start with **CODEX** executor (known to work)
+5. Verify in UI: should show "model: gpt-5-codex" (not "Auto")
+6. Monitor agent progress
+
+**Status:** ✅ **RESOLVED** - Use CODEX executor for reliable execution
+
+---
+
 ## Quick Reference
 
 ### MCP Functions
