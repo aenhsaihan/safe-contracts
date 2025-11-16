@@ -465,6 +465,23 @@ To test the full two-party flow:
 5. **Upload a file** as "Counterparty copy"
 6. **Switch back to first user** and verify you can see/download the file
 
+### 3.8 Upload & Download Flow Deep Dive
+
+Walk through the full encryption lifecycle for both parties to confirm that uploads and downloads behave identically regardless of who initiates the action.
+
+1. **Party A upload & verify**
+   - Start from an exchange you created as Party A and upload "My copy".
+   - Confirm the status pills show the SHA-256 hash immediately after the success toast.
+   - Click "Download & verify" right away to ensure the browser-side hash check passes while the file is still warm in the Lambda cache.
+   - In CloudWatch (optional) confirm the `contractsFunction` log shows both `GenerateDataKey` and `PutObject`.
+2. **Party B upload & verify**
+   - Sign in as the counterparty (use the Cognito `sub` value shown in the README note when you set up the exchange).
+   - Open the same exchange and upload two files: one marked "My copy" and another marked "Counterparty copy" to ensure ownership labels and access rules are enforced.
+   - Download both files as Party B, then sign back in as Party A and download the copies Party B produced. Each download should show the "Verifying integrity..." state followed by "Integrity verified".
+3. **Edge cases**
+   - Attempt to download while disconnecting from the network (use DevTools → Offline) to confirm the UI surfaces the Lambda error.
+   - Upload a second version of the same filename and confirm the UI distinguishes them by timestamp/hash so you can verify which blob was retrieved.
+
 ## Step 4: Verify Trust Indicators
 
 Throughout the UX, verify these trust signals are present:
@@ -576,4 +593,3 @@ Once manual testing is complete:
 ---
 
 **Happy Testing!** 🎉
-

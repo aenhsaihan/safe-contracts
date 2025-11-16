@@ -98,6 +98,10 @@ Amplify Data (ContractExchange / ContractFile metadata)
    - `./check-kms-deployment.sh` and `verify-kms-deployment.md` outline how to confirm the CMK/alias exist.  
    - If `invokeContractsFunction` throws “Unable to resolve contracts function URL,” verify that the sandbox outputs include the function URL or set `CONTRACTS_FUNCTION_URL` locally.
 
+### Counterparty identifiers (Cognito sub)
+
+When creating a new exchange in the UI you must provide the counterparty's Cognito **sub** (the UUID shown in the Amplify Auth user list). Email aliases are not persisted anywhere in the `ContractExchange` model, so copy the exact `sub` string from the Cognito console or from `getCurrentUser()` of your second test account when you paste it into the "Counterparty identifier" field.
+
 ---
 
 ## Deployment via Amplify Hosting
