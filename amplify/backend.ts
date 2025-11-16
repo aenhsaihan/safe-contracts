@@ -30,16 +30,30 @@ const kmsKey = defineKMS(stack);
 // Configure IAM role for Lambda function with permissions to access S3 and KMS
 const lambdaRole = defineLambdaIAMRole(stack, bucket, kmsKey);
 
-// Attach the IAM role to the function (replace the default role)
-backend.contractsFunction.resources.lambda.role = lambdaRole;
+// Configure the Lambda function: attach IAM role, set environment variables, and add function URL
+const lambdaFunction = backend.contractsFunction.resources.lambda;
 
-// Set environment variables
-backend.contractsFunction.resources.lambda.addEnvironment('SAFE_CONTRACTS_BUCKET', bucket.bucketName);
-backend.contractsFunction.resources.lambda.addEnvironment('SAFE_CONTRACTS_KMS_KEY_ID', kmsKey.keyId);
-backend.contractsFunction.resources.lambda.addEnvironment('SAFE_CONTRACTS_DATA_API_URL', backend.data.resources.graphqlApi.graphqlUrl);
+// Use CDK escape hatch to configure the function
+// Access the underlying CloudFormation resource to set role and environment variables
+const cfnFunction = lambdaFunction.node.defaultChild as CfnFunction;
+cfnFunction.role = lambdaRole.roleArn;
+
+// Set environment variables via CloudFormation
+const existingEnv = (cfnFunction.environment as any)?.variables || {};
+cfnFunction.environment = {
+  variables: {
+    ...existingEnv,
+    SAFE_CONTRACTS_BUCKET: bucket.bucketName,
+    SAFE_CONTRACTS_KMS_KEY_ID: kmsKey.keyId,
+    SAFE_CONTRACTS_DATA_API_URL: backend.data.resources.graphqlApi.apiId
+      ? `https://${backend.data.resources.graphqlApi.apiId}.appsync-api.${stack.region}.amazonaws.com/graphql`
+      : '',
+  },
+};
 
 // Add function URL for HTTP access (NONE auth since Lambda validates Cognito tokens)
-const functionUrl = backend.contractsFunction.resources.lambda.addFunctionUrl({
+// This will update the existing function URL if it already exists
+const functionUrl = lambdaFunction.addFunctionUrl({
   authType: FunctionUrlAuthType.NONE,
 });
 
