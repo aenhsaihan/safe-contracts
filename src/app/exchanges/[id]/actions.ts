@@ -16,6 +16,7 @@ type DownloadResult = ContractsFunctionOperationMap["decryptAndDownload"]["outpu
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
 const MAX_FILE_NAME_LENGTH = 255;
+const MAX_DESCRIPTION_LENGTH = 500;
 const MIME_TYPE_ERROR_MESSAGE =
   "That file type is not allowed. Upload a PDF, DOC/DOCX, TXT, PNG, or JPEG file.";
 const GENERIC_MIME_TYPE = "application/octet-stream";
@@ -50,12 +51,13 @@ const BASE64_REGEX =
 
 type UploadActionInput = UploadInput & {
   fileType?: string | null;
+  description?: string | null;
 };
 
 export async function uploadExchangeFileAction(input: UploadActionInput): Promise<UploadResult> {
   "use server";
 
-  const normalizedInput = validateAndNormalizeUploadInput(input);
+  const { payload, description } = validateAndNormalizeUploadInput(input);
 
   const currentUser = await getCurrentUserServerSide();
   const currentUserId = currentUser?.userId;
@@ -64,7 +66,7 @@ export async function uploadExchangeFileAction(input: UploadActionInput): Promis
     throw new Error("You must be signed in to upload files.");
   }
 
-  const exchange = await getContractExchangeById(normalizedInput.exchangeId);
+  const exchange = await getContractExchangeById(payload.exchangeId);
 
   if (!exchange) {
     throw new Error("Exchange not found.");
@@ -72,20 +74,24 @@ export async function uploadExchangeFileAction(input: UploadActionInput): Promis
 
   assertUserIsParticipant(exchange, currentUserId);
 
-  if (normalizedInput.uploaderId !== currentUserId) {
+  if (payload.uploaderId !== currentUserId) {
     throw new Error("Upload attempt rejected: uploader mismatch.");
   }
 
   if (
-    normalizedInput.ownerId !== exchange.partyAId &&
-    normalizedInput.ownerId !== exchange.partyBId
+    payload.ownerId !== exchange.partyAId &&
+    payload.ownerId !== exchange.partyBId
   ) {
     throw new Error("Owner must match one of the exchange parties.");
   }
 
+  if (description) {
+    // TODO: Persist descriptions in ContractFile records once supported by the backend schema.
+  }
+
   const result = await invokeContractsFunction({
     operation: "encryptAndUpload",
-    payload: normalizedInput,
+    payload,
   });
 
   revalidatePath("/");
@@ -139,7 +145,10 @@ function assertUserIsParticipant(
   throw new Error("You are not authorized to act on this exchange.");
 }
 
-function validateAndNormalizeUploadInput(input: UploadActionInput): UploadInput {
+function validateAndNormalizeUploadInput(input: UploadActionInput): {
+  payload: UploadInput;
+  description?: string | null;
+} {
   const exchangeId = normalizeIdentifier(input.exchangeId, "exchange");
   const ownerId = normalizeIdentifier(input.ownerId, "owner");
   const uploaderId = normalizeIdentifier(input.uploaderId, "uploader");
@@ -147,14 +156,18 @@ function validateAndNormalizeUploadInput(input: UploadActionInput): UploadInput 
   const fileSize = normalizeFileSize(input.fileSize);
   ensureMimeTypeAllowed(input.fileType, fileName);
   const fileBase64 = normalizeBase64Payload(input.fileBase64, fileSize);
+  const description = normalizeDescription(input.description);
 
   return {
-    exchangeId,
-    ownerId,
-    uploaderId,
-    fileName,
-    fileSize,
-    fileBase64,
+    payload: {
+      exchangeId,
+      ownerId,
+      uploaderId,
+      fileName,
+      fileSize,
+      fileBase64,
+    },
+    description,
   };
 }
 
@@ -250,6 +263,23 @@ function normalizeBase64Payload(payload: string, expectedSize: number) {
   }
 
   decoded.fill(0);
+  return trimmed;
+}
+
+function normalizeDescription(value: string | null | undefined) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.length > MAX_DESCRIPTION_LENGTH) {
+    return trimmed.slice(0, MAX_DESCRIPTION_LENGTH);
+  }
+
   return trimmed;
 }
 
