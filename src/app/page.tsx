@@ -1,83 +1,21 @@
-import ExchangeDetail from "@/components/exchanges/ExchangeDetail";
-import ExchangeList from "@/components/exchanges/ExchangeList";
+import Link from "next/link";
 
-const mockExchanges = [
-  {
-    id: "exc-01",
-    title: "Series A Subscription Agreement",
-    counterpart: "Atlas Ventures",
-    status: "ACTION_REQUIRED" as const,
-    updatedAt: "2024-06-10T13:10:00.000Z",
-    fileCount: 3,
-  },
-  {
-    id: "exc-02",
-    title: "Supply Agreement Renewal",
-    counterpart: "Northwind Manufacturing",
-    status: "PENDING" as const,
-    updatedAt: "2024-06-07T09:12:00.000Z",
-    fileCount: 1,
-  },
-  {
-    id: "exc-03",
-    title: "Global Payroll Services",
-    counterpart: "Contoso Payroll",
-    status: "COMPLETED" as const,
-    updatedAt: "2024-06-01T18:30:00.000Z",
-    fileCount: 4,
-  },
-];
+import {
+  getCurrentUserServerSide,
+  getDataClientServerSide,
+  runWithAmplifyServerContext,
+} from "@/lib/amplify-server";
 
-const currentUserId = "user-safe-contracts";
+type ExchangeRecord = Awaited<ReturnType<typeof fetchExchangesForUser>>[number];
 
-const activeExchange = {
-  id: "exc-01",
-  title: "Series A Subscription Agreement",
-  partyA: "Safe Contracts Inc.",
-  partyAId: currentUserId,
-  partyB: "Atlas Ventures",
-  partyBId: "user-atlas-ventures",
-  status: "ACTION_REQUIRED" as const,
-  createdAt: "2024-05-30T10:00:00.000Z",
-};
+export default async function DashboardPage() {
+  const currentUser = await getCurrentUserServerSide();
+  const userId = currentUser?.userId ?? null;
+  const exchanges = userId ? await fetchExchangesForUser(userId) : [];
 
-const activeFiles = [
-  {
-    id: "file-nda",
-    fileName: "Signed-NDA.pdf",
-    fileSize: 148000,
-    owner: "My copy",
-    uploader: "You",
-    uploadedAt: "2024-06-09T15:22:00.000Z",
-    sha256: "06ade1a1496654d5c2e1ba4cb322dcf8f62107d096dbc2485756d8b512df40d4",
-    base64: "U2lnbmVkIE5EQSBEb2N1bWVudCB2MQ==",
-  },
-  {
-    id: "file-risk",
-    fileName: "Risk-Assessment.docx",
-    fileSize: 89000,
-    owner: "Counterparty copy",
-    uploader: "Atlas Ventures",
-    uploadedAt: "2024-06-08T11:05:00.000Z",
-    sha256: "c47d9a22c636061c7398db8bdb3198d4849dc5b647a742a76b8d994571fda853",
-    base64: "Q291bnRlcnBhcnR5IFJpc2sgQXNzZXNzbWVudCAyMDI0",
-  },
-  {
-    id: "file-payment",
-    fileName: "Payment-Terms.pdf",
-    fileSize: 204000,
-    owner: "Counterparty copy",
-    uploader: "Atlas Ventures",
-    uploadedAt: "2024-06-07T08:40:00.000Z",
-    sha256: "435e8b2109a3146de5269197cebd69fc3ef55cb110e4f8a0436871862e79a94a",
-    base64: "UGF5bWVudCBUZXJtcyBBZGRlbmR1bSBkcmFmdA==",
-  },
-];
-
-export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white py-10">
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6">
         <section className="rounded-3xl border border-zinc-200 bg-white/90 p-8 shadow-sm backdrop-blur">
           <p className="text-sm font-semibold uppercase tracking-wide text-sky-600">
             Safe Contracts dashboard
@@ -89,12 +27,154 @@ export default function Home() {
             Every upload is wrapped with KMS envelope encryption, hashed with SHA-256, and verified on
             download so counterparties can trust the chain of custody.
           </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href="/exchanges/new"
+              className="inline-flex items-center rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-500"
+            >
+              Start a new exchange
+            </Link>
+            <Link
+              href="/"
+              className="inline-flex items-center rounded-xl border border-transparent px-4 py-2 text-sm font-semibold text-sky-700 transition hover:border-sky-200 hover:bg-sky-50"
+            >
+              Refresh dashboard
+            </Link>
+          </div>
         </section>
 
-        <ExchangeList exchanges={mockExchanges} />
-
-        <ExchangeDetail exchange={activeExchange} files={activeFiles} currentUserId={currentUserId} />
+        {userId ? (
+          <ExchangeList exchanges={exchanges} />
+        ) : (
+          <section className="rounded-2xl border border-dashed border-zinc-200 bg-white/70 p-6 text-center text-sm text-zinc-600">
+            Sign in to see encrypted exchanges you{"'"}re a participant in.
+          </section>
+        )}
       </main>
     </div>
   );
+}
+
+async function fetchExchangesForUser(userId: string) {
+  const dataClient = getDataClientServerSide();
+  const response = await runWithAmplifyServerContext({
+    operation: () =>
+      dataClient.models.ContractExchange.list({
+        filter: {
+          or: [{ partyAId: { eq: userId } }, { partyBId: { eq: userId } }],
+        },
+      }),
+  });
+
+  if (response.errors?.length) {
+    const message = response.errors.map((error) => error.message).join("; ");
+    throw new Error(`Unable to load exchanges: ${message}`);
+  }
+
+  const list = [...(response.data ?? [])];
+
+  return list.sort((left, right) => {
+    const leftDate = new Date(left.createdAt ?? left.updatedAt ?? 0).getTime();
+    const rightDate = new Date(right.createdAt ?? right.updatedAt ?? 0).getTime();
+    return rightDate - leftDate;
+  });
+}
+
+function ExchangeList({ exchanges }: { exchanges: ExchangeRecord[] }) {
+  if (exchanges.length === 0) {
+    return (
+      <section className="rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-sm backdrop-blur">
+        <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Your exchanges
+            </p>
+            <h2 className="text-xl font-semibold text-zinc-900">No exchanges yet</h2>
+          </div>
+          <Link
+            href="/exchanges/new"
+            className="inline-flex items-center rounded-lg border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-sky-600 hover:text-sky-700"
+          >
+            Create your first exchange
+          </Link>
+        </header>
+        <p className="text-sm text-zinc-600">
+          Kick off a new workflow to invite a counterparty and start exchanging encrypted files.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-zinc-200 bg-white/80 p-6 shadow-sm backdrop-blur">
+      <header className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            Your exchanges
+          </p>
+          <h2 className="text-xl font-semibold text-zinc-900">
+            {exchanges.length} active {exchanges.length === 1 ? "record" : "records"}
+          </h2>
+        </div>
+        <Link
+          href="/exchanges/new"
+          className="inline-flex items-center rounded-lg border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 transition hover:border-sky-600 hover:text-sky-700"
+        >
+          New exchange
+        </Link>
+      </header>
+
+      <div className="divide-y divide-zinc-100">
+        {exchanges.map((exchange) => (
+          <article
+            key={exchange.id}
+            className="flex flex-col gap-3 py-4 text-sm text-zinc-600 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div>
+              <h3 className="text-base font-semibold text-zinc-900">{exchange.title}</h3>
+              <p>
+                Party A: <span className="font-mono text-xs text-zinc-800">{exchange.partyAId}</span>
+              </p>
+              <p>
+                Party B: <span className="font-mono text-xs text-zinc-800">{exchange.partyBId}</span>
+              </p>
+              <p className="text-xs text-zinc-400">
+                Created {formatDateLabel(exchange.createdAt ?? exchange.updatedAt)}
+              </p>
+            </div>
+            <div className="flex flex-col items-start gap-2 sm:items-end">
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
+                {(exchange.status ?? "PENDING").replace("_", " ")}
+              </span>
+              <Link
+                href={`/exchanges/${encodeURIComponent(exchange.id)}`}
+                className="text-sm font-semibold text-sky-600 transition hover:text-sky-500"
+              >
+                View exchange →
+              </Link>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function formatDateLabel(input?: string | null) {
+  if (!input) {
+    return "Unknown";
+  }
+
+  const value = new Date(input);
+  if (Number.isNaN(value.getTime())) {
+    return "Unknown";
+  }
+
+  return value.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
