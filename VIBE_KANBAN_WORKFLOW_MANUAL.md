@@ -451,6 +451,45 @@ mcp_vibe-kanban_start_task_attempt(task_id, executor, base_branch)
 
 ---
 
+### Critical Discovery: Executor Parameter May Not Work
+
+**Second Failure (November 16, 2025 - Same Day):**
+
+**What Happened:**
+After documenting the first failure and implementing prevention steps, we attempted to fix Task 2 by:
+1. Resetting task status to "todo"
+2. Cleaning up all old worktrees
+3. Starting fresh with explicit `CURSOR_AGENT` executor
+
+**Result:** The attempt STILL showed "System initialized with model: Auto" in the UI, despite explicitly passing `executor: "CURSOR_AGENT"` to `start_task_attempt`.
+
+**Root Cause Analysis:**
+- The `executor` parameter in `start_task_attempt` may not be working as expected
+- Vibe Kanban may be ignoring the executor parameter and defaulting to "Auto"
+- There may be a bug in Vibe Kanban's MCP implementation
+- Or the executor needs to be specified differently (e.g., via UI, not MCP)
+
+**Why This Is Critical:**
+- We cannot rely on the `executor` parameter to work correctly
+- Even with proper workflow (reset → cleanup → start fresh), the issue persists
+- This suggests a systemic problem, not just a workflow mistake
+
+**Investigation Needed:**
+1. Check if executor parameter is actually being passed correctly
+2. Verify if Vibe Kanban UI has a way to set executor that works
+3. Test if CODEX works differently than CURSOR_AGENT
+4. Document workaround if executor parameter is broken
+
+**Temporary Workaround:**
+- If executor parameter doesn't work, we may need to:
+  - Use Vibe Kanban UI to manually set executor before starting
+  - Or accept that some attempts will use "Auto" and stop/restart them
+  - Or investigate if there's a different MCP function or parameter format
+
+**Status:** ⚠️ **UNRESOLVED** - Executor parameter appears to be ignored by Vibe Kanban
+
+---
+
 ## Quick Reference
 
 ### MCP Functions
