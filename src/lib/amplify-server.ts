@@ -127,7 +127,9 @@ export async function invokeContractsFunction<Operation extends ContractsFunctio
   const { tokens } = await runWithAmplifyServerContext({
     operation: (contextSpec) => fetchAuthSession(contextSpec),
   });
-  const authorization = tokens?.idToken?.toString() ?? tokens?.accessToken?.toString();
+  const token = tokens?.idToken?.toString() ?? tokens?.accessToken?.toString();
+  // Format token as Bearer token for Lambda function URL
+  const authorization = token ? (token.startsWith('Bearer ') ? token : `Bearer ${token}`) : undefined;
 
   const response = await fetch(contractsFunctionUrl, {
     method: "POST",
