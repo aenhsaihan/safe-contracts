@@ -1,7 +1,8 @@
 import { defineBackend } from '@aws-amplify/backend';
 import { Stack } from 'aws-cdk-lib';
-import { FunctionUrlAuthType } from 'aws-cdk-lib/aws-lambda';
+import { FunctionUrlAuthType, CfnUrl } from 'aws-cdk-lib/aws-lambda';
 import { CfnFunction } from 'aws-cdk-lib/aws-lambda';
+import { AnyPrincipal, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { defineStorage } from './storage/resource';
@@ -55,6 +56,22 @@ cfnFunction.environment = {
 // This will update the existing function URL if it already exists
 const functionUrl = lambdaFunction.addFunctionUrl({
   authType: FunctionUrlAuthType.NONE,
+});
+
+// Add resource-based policy to allow all requests to the function URL
+// Even with FunctionUrlAuthType.NONE, we need to grant lambda:InvokeFunctionUrl permission
+const cfnUrl = functionUrl.node.defaultChild as CfnUrl;
+cfnUrl.addPropertyOverride('Cors', {
+  AllowOrigins: ['*'],
+  AllowMethods: ['*'],
+  AllowHeaders: ['*'],
+});
+
+// Grant invoke permission to all principals (since auth is handled by Lambda code)
+lambdaFunction.addPermission('AllowPublicInvoke', {
+  principal: new AnyPrincipal(),
+  action: 'lambda:InvokeFunctionUrl',
+  functionUrlAuthType: FunctionUrlAuthType.NONE,
 });
 
 // Export the function URL to custom outputs so it's available in amplify_outputs.json
