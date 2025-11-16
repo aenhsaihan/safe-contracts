@@ -479,7 +479,50 @@ mcp_vibe-kanban_start_task_attempt(task2_id, "CODEX", "main")  // Use CODEX, not
 - Restarted Task 2 with CODEX - worked immediately ✅
 - **Lesson:** Use CODEX for all parallel tasks to avoid issues
 
-### 3. Always Test Before Merge
+### 3. Use MCP Commands for Status Checks
+
+**Best Practice: Prefer MCP Commands Over Browser Snapshots**
+
+For routine status checks and monitoring:
+- **Use MCP commands** - More efficient and programmatic
+  ```typescript
+  // Check task status
+  mcp_vibe-kanban_get_task(task_id)
+  
+  // List tasks by status
+  mcp_vibe-kanban_list_tasks(project_id, status: "in-review")
+  mcp_vibe-kanban_list_tasks(project_id, status: "in-progress")
+  ```
+
+**When to Use Browser Snapshots:**
+- Verifying executor model in UI (checking for "Auto" vs "CODEX")
+- Debugging executor issues
+- Checking specific UI details not available in MCP response
+- Visual verification of task state
+
+**Why This Matters:**
+- MCP commands are faster and more reliable
+- Browser snapshots are slower and require navigation
+- MCP provides structured data, easier to parse
+- Reduces unnecessary browser automation overhead
+
+**Example Workflow:**
+```typescript
+// ✅ Good: Use MCP for status check
+const task = mcp_vibe-kanban_get_task(task_id);
+if (task.status === "in-review") {
+  // Review the task
+}
+
+// ⚠️ Only use browser snapshot when needed
+// (e.g., verifying executor is not "Auto")
+if (needExecutorVerification) {
+  browser_navigate(task_url);
+  browser_snapshot();
+}
+```
+
+### 4. Always Test Before Merge
 
 ```bash
 # Test in worktree isolation
