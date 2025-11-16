@@ -1,6 +1,5 @@
 import { defineBackend } from '@aws-amplify/backend';
-import { Stack, CfnOutput } from 'aws-cdk-lib';
-import { FunctionUrlAuthType, FunctionUrl } from 'aws-cdk-lib/aws-lambda';
+import { Stack } from 'aws-cdk-lib';
 import { CfnFunction } from 'aws-cdk-lib/aws-lambda';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
@@ -51,19 +50,6 @@ cfnFunction.environment = {
   },
 };
 
-// Add function URL for HTTP access (NONE auth since Lambda validates Cognito tokens)
-// Create FunctionUrl directly using CDK construct with unique ID
-const functionUrl = new FunctionUrl(stack, 'ContractsFunctionUrlConstruct', {
-  function: lambdaFunction,
-  authType: FunctionUrlAuthType.NONE,
-});
-
-// Export the function URL using CloudFormation output
-// This will be available in the stack outputs and can be manually added to amplify_outputs.json
-// Note: There's a known bug in Amplify Gen 2 v1.8.0 that prevents automatic generation of amplify_outputs.json
-// The function URL will be available via the stack outputs or can be manually added to amplify_outputs.json
-new CfnOutput(stack, 'ContractsFunctionUrlOutput', {
-  value: functionUrl.url,
-  description: 'URL for the contractsFunction Lambda function',
-  exportName: 'ContractsFunctionUrl',
-});
+// Function URL is already created and configured for this Lambda function
+// The URL is available in amplify_outputs.json (manually added due to Amplify Gen 2 bug)
+// No need to create it again - AWS Lambda only allows one function URL per function
