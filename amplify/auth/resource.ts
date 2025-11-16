@@ -1,11 +1,24 @@
 import { defineAuth } from '@aws-amplify/backend';
 
 /**
- * Define and configure your auth resource
- * @see https://docs.amplify.aws/gen2/build-a-backend/auth
+ * Configure Cognito with email/password sign-in, MFA, and the generated user
+ * and identity pools that back the application.
  */
 export const auth = defineAuth({
+  name: 'SafeContractsAuth',
   loginWith: {
     email: true,
+  },
+  userAttributes: {
+    email: {
+      required: true,
+      mutable: false,
+    },
+  },
+  accountRecovery: 'EMAIL_ONLY',
+  multifactor: {
+    mode: 'REQUIRED',
+    sms: true,
+    totp: true,
   },
 });
