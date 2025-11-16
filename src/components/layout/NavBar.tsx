@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SignOutButton } from "@/components/auth/SignOutButton";
 import { getCurrentUserServerSide } from "@/lib/amplify-server";
 
 const navLinkClasses = "text-sm font-medium text-zinc-600 transition-colors hover:text-zinc-900";
@@ -36,11 +37,7 @@ export default async function NavBar() {
                 Signed in as {" "}
                 <span className="font-medium text-zinc-800">{displayName}</span>
               </span>
-              <form action="/api/auth/signout" method="post">
-                <button type="submit" className={buttonClasses}>
-                  Sign out
-                </button>
-              </form>
+              <SignOutButton className={buttonClasses}>Sign out</SignOutButton>
             </>
           ) : (
             <Link href="/signin" className={buttonClasses}>
@@ -52,3 +49,4 @@ export default async function NavBar() {
     </header>
   );
 }
+

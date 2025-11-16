@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { useActionState, useEffect, useRef } from "react";
+import { useFormStatus } from "react-dom";
 
 export type CreateExchangeFormState = {
   success: boolean;
@@ -22,7 +22,7 @@ type CreateExchangeFormProps = {
 
 export function CreateExchangeForm({ action }: CreateExchangeFormProps) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [formState, formAction] = useFormState(action, initialFormState);
+  const [formState, formAction] = useActionState(action, initialFormState);
 
   useEffect(() => {
     if (formState.success) {
