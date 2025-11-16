@@ -135,6 +135,11 @@ type LambdaResponseBody = {
 export const handler = async (
   event: APIGatewayProxyEventV2,
 ): Promise<APIGatewayProxyResultV2> => {
+  // Handle CORS preflight requests
+  if (event.requestContext.http.method === 'OPTIONS') {
+    return jsonResponse({}, 200);
+  }
+
   try {
     const request = parseRequest(event);
 
@@ -625,7 +630,12 @@ function sha256Hex(data: Buffer) {
 function jsonResponse(body: LambdaResponseBody, statusCode = 200) {
   return {
     statusCode,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
     body: JSON.stringify(body),
   };
 }
