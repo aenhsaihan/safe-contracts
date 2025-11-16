@@ -1,11 +1,23 @@
-import { randomBytes, randomUUID, createCipheriv, createHash } from 'crypto';
+import {
+  randomBytes,
+  randomUUID,
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+} from 'crypto';
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
 import {
   GenerateDataKeyCommand,
   KMSClient,
   GenerateDataKeyCommandInput,
+  DecryptCommand,
 } from '@aws-sdk/client-kms';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+  type GetObjectCommandOutput,
+} from '@aws-sdk/client-s3';
 
 const kmsClient = new KMSClient({});
 const s3Client = new S3Client({});
@@ -21,14 +33,55 @@ const kmsKeyId =
   process.env.CONTRACTS_KMS_KEY_ID ??
   'alias/safe-contracts-master-key';
 
+const dataApiUrl =
+  process.env.SAFE_CONTRACTS_DATA_API_URL ??
+  process.env.CONTRACTS_DATA_API_URL ??
+  process.env.AMPLIFY_DATA_GRAPHQL_ENDPOINT ??
+  process.env.DATA_API_URL;
+
 const PACK_IV_LENGTH_BYTES = 12;
 const PACK_AUTH_TAG_LENGTH_BYTES = 16;
+const GET_CONTRACT_FILE_QUERY = /* GraphQL */ `
+  query GetContractFile($id: ID!) {
+    getContractFile(id: $id) {
+      id
+      exchangeId
+      ownerId
+      uploaderId
+      s3Key
+      fileName
+      fileSize
+      fileHash
+      kmsKeyId
+      kmsCiphertextKey
+      encryptionContextOwnerId
+      encryptionContextUploaderId
+      encryptionContextExchangeId
+      exchange {
+        id
+        partyAId
+        partyBId
+      }
+    }
+  }
+`;
+
+type EncryptAndUploadRequest = {
+  operation: 'encryptAndUpload';
+  payload: EncryptAndUploadPayload;
+};
+
+type DecryptAndDownloadRequest = {
+  operation: 'decryptAndDownload';
+  payload: DecryptAndDownloadPayload;
+};
+
+type ContractsFunctionOperationRequest =
+  | EncryptAndUploadRequest
+  | DecryptAndDownloadRequest;
 
 type ContractsFunctionRequest =
-  | {
-      operation: 'encryptAndUpload';
-      payload: EncryptAndUploadPayload;
-    }
+  | ContractsFunctionOperationRequest
   | {
       operation: string;
       payload: unknown;
@@ -43,6 +96,37 @@ type EncryptAndUploadPayload = {
   fileBase64: string;
 };
 
+type DecryptAndDownloadPayload = {
+  fileId: string;
+};
+
+type ContractExchangeRecord = {
+  id: string;
+  partyAId?: string | null;
+  partyBId?: string | null;
+};
+
+type ContractFileRecord = {
+  id: string;
+  exchangeId: string;
+  ownerId: string;
+  uploaderId: string;
+  s3Key: string;
+  fileName: string;
+  fileSize: number;
+  fileHash: string;
+  kmsKeyId: string;
+  kmsCiphertextKey: string;
+  encryptionContextOwnerId: string;
+  encryptionContextUploaderId: string;
+  encryptionContextExchangeId: string;
+  exchange?: ContractExchangeRecord | null;
+};
+
+type GraphQLContractFileRecord = Omit<ContractFileRecord, 'fileSize'> & {
+  fileSize?: number | null;
+};
+
 type LambdaResponseBody = {
   result?: Record<string, unknown>;
   error?: string;
@@ -54,17 +138,20 @@ export const handler = async (
   try {
     const request = parseRequest(event);
 
-    switch (request.operation) {
-      case 'encryptAndUpload': {
-        const result = await encryptAndUpload(request.payload);
-        return jsonResponse({ result });
-      }
-      default:
-        return jsonResponse(
-          { error: `Unsupported operation: ${request.operation}` },
-          400,
-        );
+    if (isEncryptAndUploadRequest(request)) {
+      const result = await encryptAndUpload(request.payload);
+      return jsonResponse({ result });
     }
+
+    if (isDecryptAndDownloadRequest(request)) {
+      const result = await decryptAndDownload(request.payload, event);
+      return jsonResponse({ result });
+    }
+
+    return jsonResponse(
+      { error: `Unsupported operation: ${request.operation}` },
+      400,
+    );
   } catch (error) {
     console.error('contractsFunction error', error);
     return jsonResponse(
@@ -179,6 +266,93 @@ async function encryptAndUpload(payload: EncryptAndUploadPayload) {
   };
 }
 
+async function decryptAndDownload(
+  payload: DecryptAndDownloadPayload,
+  event: APIGatewayProxyEventV2,
+) {
+  if (!bucketName) {
+    throw new Error(
+      'Missing SAFE_CONTRACTS_BUCKET/SAFE_CONTRACTS_BUCKET_NAME env variable.',
+    );
+  }
+
+  const { fileId } = payload;
+  const normalizedFileId = typeof fileId === 'string' ? fileId.trim() : '';
+  if (!normalizedFileId) {
+    throw new Error('Provide the fileId to download.');
+  }
+
+  const authorizationHeader = extractAuthorizationHeader(event);
+  if (!authorizationHeader) {
+    throw new Error(
+      'Missing Authorization header. Sign in again and retry the download.',
+    );
+  }
+
+  const userId = getAuthenticatedUserId(event);
+  if (!userId) {
+    throw new Error('Unable to resolve authenticated user from the request.');
+  }
+
+  const contractFile = await lookupContractFile(
+    normalizedFileId,
+    authorizationHeader,
+  );
+
+  assertUserAuthorized(contractFile, userId);
+
+  const s3Object = await s3Client.send(
+    new GetObjectCommand({
+      Bucket: bucketName,
+      Key: contractFile.s3Key,
+    }),
+  );
+
+  const encryptedPayload = await readS3Body(s3Object);
+  const { iv, ciphertext, authTag } = unpackEncryptedPayload(encryptedPayload);
+
+  const encryptionContext = {
+    ownerId: contractFile.encryptionContextOwnerId,
+    uploaderId: contractFile.encryptionContextUploaderId,
+    exchangeId: contractFile.encryptionContextExchangeId,
+  };
+
+  const decryptResponse = await kmsClient.send(
+    new DecryptCommand({
+      CiphertextBlob: Buffer.from(contractFile.kmsCiphertextKey, 'base64'),
+      EncryptionContext: encryptionContext,
+      KeyId: contractFile.kmsKeyId ?? kmsKeyId,
+    }),
+  );
+
+  if (!decryptResponse.Plaintext) {
+    throw new Error('KMS did not return plaintext data key for file decrypt.');
+  }
+
+  const plaintextKey = Buffer.from(decryptResponse.Plaintext);
+  const decipher = createDecipheriv('aes-256-gcm', plaintextKey, iv);
+  decipher.setAuthTag(authTag);
+
+  const plaintextFile = Buffer.concat([
+    decipher.update(ciphertext),
+    decipher.final(),
+  ]);
+  plaintextKey.fill(0);
+
+  const computedHash = sha256Hex(plaintextFile);
+  if (computedHash !== contractFile.fileHash) {
+    throw new Error(
+      'Integrity verification failed. The decrypted file hash does not match the stored hash.',
+    );
+  }
+
+  return {
+    fileName: contractFile.fileName,
+    fileHash: contractFile.fileHash,
+    fileBase64: plaintextFile.toString('base64'),
+  };
+}
+
 async function generateDataKey(input: GenerateDataKeyCommandInput) {
   const response = await kmsClient.send(new GenerateDataKeyCommand(input));
 
@@ -240,6 +414,203 @@ function packEncryptedPayload({
   authTag.copy(buffer, PACK_IV_LENGTH_BYTES + ciphertext.length);
 
   return buffer;
+}
+
+function unpackEncryptedPayload(buffer: Buffer) {
+  if (
+    buffer.length <
+    PACK_IV_LENGTH_BYTES + PACK_AUTH_TAG_LENGTH_BYTES
+  ) {
+    throw new Error('Encrypted payload buffer is too small.');
+  }
+
+  const ciphertextLength =
+    buffer.length - PACK_IV_LENGTH_BYTES - PACK_AUTH_TAG_LENGTH_BYTES;
+
+  const iv = Buffer.from(buffer.subarray(0, PACK_IV_LENGTH_BYTES));
+  const ciphertext = Buffer.from(
+    buffer.subarray(
+      PACK_IV_LENGTH_BYTES,
+      PACK_IV_LENGTH_BYTES + ciphertextLength,
+    ),
+  );
+  const authTag = Buffer.from(
+    buffer.subarray(buffer.length - PACK_AUTH_TAG_LENGTH_BYTES),
+  );
+
+  return { iv, ciphertext, authTag };
+}
+
+async function lookupContractFile(
+  fileId: string,
+  authorizationHeader: string,
+): Promise<ContractFileRecord> {
+  if (!dataApiUrl) {
+    throw new Error(
+      'Missing SAFE_CONTRACTS_DATA_API_URL/CONTRACTS_DATA_API_URL env variable for metadata lookups.',
+    );
+  }
+
+  const response = await fetch(dataApiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authorizationHeader,
+    },
+    body: JSON.stringify({
+      query: GET_CONTRACT_FILE_QUERY,
+      variables: { id: fileId },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `ContractFile lookup failed with ${response.status} ${response.statusText}.`,
+    );
+  }
+
+  const json = (await response.json()) as {
+    data?: { getContractFile?: GraphQLContractFileRecord };
+    errors?: { message?: string }[];
+  };
+
+  if (json.errors?.length) {
+    const message = json.errors.map((error) => error.message).join('; ');
+    throw new Error(`ContractFile lookup returned errors: ${message}`);
+  }
+
+  const record = json.data?.getContractFile;
+  if (!record) {
+    throw new Error(`ContractFile ${fileId} not found.`);
+  }
+
+  if (!record.kmsCiphertextKey || !record.kmsKeyId || !record.s3Key) {
+    throw new Error(
+      `ContractFile ${fileId} metadata is incomplete (missing S3 key or KMS key reference).`,
+    );
+  }
+
+  const normalizedFileSize =
+    typeof record.fileSize === 'number'
+      ? record.fileSize
+      : Number(record.fileSize ?? NaN);
+
+  if (!Number.isFinite(normalizedFileSize)) {
+    throw new Error(
+      `ContractFile ${fileId} is missing a valid fileSize attribute.`,
+    );
+  }
+
+  return {
+    ...record,
+    fileSize: normalizedFileSize,
+  };
+}
+
+function assertUserAuthorized(record: ContractFileRecord, userId: string) {
+  const allowedIds = [
+    record.ownerId,
+    record.uploaderId,
+    record.exchange?.partyAId ?? undefined,
+    record.exchange?.partyBId ?? undefined,
+  ].filter(
+    (value): value is string => typeof value === 'string' && value.length > 0,
+  );
+
+  if (!allowedIds.includes(userId)) {
+    throw new Error('You are not authorized to download this file.');
+  }
+}
+
+async function readS3Body(
+  response: GetObjectCommandOutput,
+): Promise<Buffer> {
+  const { Body } = response;
+  if (!Body) {
+    throw new Error('S3 object download did not include a payload body.');
+  }
+
+  if (Body instanceof Uint8Array) {
+    return Buffer.from(Body);
+  }
+
+  if (Buffer.isBuffer(Body)) {
+    return Body;
+  }
+
+  if (typeof Body === 'string') {
+    return Buffer.from(Body);
+  }
+
+  const bodyAny = Body as {
+    transformToByteArray?: () => Promise<Uint8Array>;
+  };
+  if (typeof bodyAny.transformToByteArray === 'function') {
+    const arr = await bodyAny.transformToByteArray();
+    return Buffer.from(arr);
+  }
+
+  if (Symbol.asyncIterator in (Body as unknown as Record<string, unknown>)) {
+    const chunks: Buffer[] = [];
+    for await (const chunk of Body as AsyncIterable<Buffer | Uint8Array>) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  }
+
+  throw new Error('Unsupported S3 body payload type encountered.');
+}
+
+function extractAuthorizationHeader(event: APIGatewayProxyEventV2) {
+  const headers = event.headers ?? {};
+
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === 'authorization' && value) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function getAuthenticatedUserId(event: APIGatewayProxyEventV2) {
+  const requestContext = (event.requestContext ?? {}) as unknown as {
+    authorizer?: {
+      jwt?: { claims?: Record<string, unknown> };
+      lambda?: Record<string, unknown>;
+    };
+  };
+
+  const authorizer = requestContext.authorizer;
+  const claims = (authorizer?.jwt?.claims ?? {}) as Record<string, unknown>;
+  const claimKeys = ['sub', 'username', 'cognito:username'];
+
+  for (const key of claimKeys) {
+    const value = claims[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value;
+    }
+  }
+
+  const lambdaContext = (authorizer?.lambda ?? {}) as Record<string, unknown>;
+  const lambdaSub = lambdaContext.sub;
+  if (typeof lambdaSub === 'string' && lambdaSub.trim()) {
+    return lambdaSub;
+  }
+
+  return undefined;
+}
+
+function isEncryptAndUploadRequest(
+  request: ContractsFunctionRequest,
+): request is EncryptAndUploadRequest {
+  return request.operation === 'encryptAndUpload';
+}
+
+function isDecryptAndDownloadRequest(
+  request: ContractsFunctionRequest,
+): request is DecryptAndDownloadRequest {
+  return request.operation === 'decryptAndDownload';
 }
 
 function sha256Hex(data: Buffer) {
