@@ -11,11 +11,16 @@ frontend:
         - |
           if [ -f "amplify_outputs.json" ]; then
             echo "✓ Found amplify_outputs.json"
+            # Ensure the file is readable and has content
+            if [ ! -s "amplify_outputs.json" ]; then
+              echo "⚠ Warning: amplify_outputs.json is empty"
+            fi
           else
             echo "⚠ Warning: amplify_outputs.json not found"
             echo "Amplify Hosting should generate this automatically when it detects the amplify/ folder."
             echo "If the build fails, you may need to commit amplify_outputs.json to your repository."
             echo "The file contains endpoints (not secrets) and is safe to commit."
+            exit 1
           fi
     build:
       commands:

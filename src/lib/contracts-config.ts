@@ -1,3 +1,5 @@
+// Import amplify_outputs.json - Next.js handles JSON imports automatically
+// In production, the file should be in the build output
 import amplifyOutputsJson from "../../amplify_outputs.json";
 
 export type ContractsAmplifyOutputs = typeof amplifyOutputsJson & {
