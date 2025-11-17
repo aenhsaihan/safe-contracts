@@ -4,9 +4,18 @@ frontend:
     preBuild:
       commands:
         - npm install --legacy-peer-deps
-        # Pull Amplify backend configuration (if backend is deployed)
-        # Uncomment and set your app ID and environment name:
-        # - npx ampx pull --appId <your-app-id> --envName <env-name> --yes
+        # Pull Amplify backend configuration
+        # Amplify Hosting provides AMPLIFY_APP_ID and AMPLIFY_ENV_NAME automatically
+        # If those aren't set, you can set them as environment variables in Amplify Hosting console
+        - |
+          if [ -n "$AMPLIFY_APP_ID" ] && [ -n "$AMPLIFY_ENV_NAME" ]; then
+            echo "Pulling Amplify backend configuration..."
+            npx ampx pull --appId $AMPLIFY_APP_ID --envName $AMPLIFY_ENV_NAME --yes
+          else
+            echo "Warning: AMPLIFY_APP_ID or AMPLIFY_ENV_NAME not set. Skipping backend pull."
+            echo "Set these in Amplify Hosting console → App settings → Environment variables"
+            echo "Or create amplify_outputs.json manually and commit it to the repository."
+          fi
     build:
       commands:
         - npm run build
