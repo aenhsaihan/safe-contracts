@@ -1,21 +1,28 @@
-import { createServerRunner, type NextServer } from "@aws-amplify/adapter-nextjs";
+import {
+  createServerRunner,
+  type NextServer,
+} from "@aws-amplify/adapter-nextjs";
 import { generateServerClientUsingCookies } from "@aws-amplify/adapter-nextjs/api";
 import type { AmplifyServer } from "aws-amplify/adapter-core/internals";
 import { getCurrentUser, fetchAuthSession } from "aws-amplify/auth/server";
 import { cookies } from "next/headers";
 
-import { amplifyOutputs, resolveContractsFunctionUrl } from "./contracts-config";
+import {
+  amplifyOutputs,
+  resolveContractsFunctionUrl,
+} from "./contracts-config";
 
-const {
-  runWithAmplifyServerContext: runWithAmplifyServerContextBase,
-} = createServerRunner({ config: amplifyOutputs });
+const { runWithAmplifyServerContext: runWithAmplifyServerContextBase } =
+  createServerRunner({ config: amplifyOutputs });
 
 // Note: Data client should be generated inside server context operations
 // We'll generate it lazily when needed
 
 type RunWithAmplifyServerContextInput<Result> = {
   nextServerContext?: NextServer.Context | null;
-  operation: (contextSpec: AmplifyServer.ContextSpec) => Result | Promise<Result>;
+  operation: (
+    contextSpec: AmplifyServer.ContextSpec
+  ) => Result | Promise<Result>;
 };
 
 /**
@@ -98,6 +105,7 @@ export type ContractsFunctionOperationMap = {
   decryptAndDownload: {
     input: {
       fileId: string;
+      userId?: string;
     };
     output: {
       fileName: string;
@@ -115,7 +123,9 @@ type ContractsFunctionOperation = keyof ContractsFunctionOperationMap;
 /**
  * Invokes the `contractsFunction` Lambda with strong typing around its operations.
  */
-export async function invokeContractsFunction<Operation extends ContractsFunctionOperation>({
+export async function invokeContractsFunction<
+  Operation extends ContractsFunctionOperation,
+>({
   operation,
   payload,
 }: {
@@ -129,16 +139,26 @@ export async function invokeContractsFunction<Operation extends ContractsFunctio
   });
   // Send token directly without Bearer prefix for FunctionUrlAuthType.NONE
   // The function URL doesn't validate tokens, so we just pass it through
-  const authorization = tokens?.idToken?.toString() ?? tokens?.accessToken?.toString();
+  const authorization =
+    tokens?.idToken?.toString() ?? tokens?.accessToken?.toString();
 
   const requestBody = JSON.stringify({
     operation,
     payload,
   });
 
-  console.log('[invokeContractsFunction] Calling function URL:', contractsFunctionUrl);
-  console.log('[invokeContractsFunction] Has authorization token:', !!authorization);
-  console.log('[invokeContractsFunction] Request body size:', requestBody.length);
+  console.log(
+    "[invokeContractsFunction] Calling function URL:",
+    contractsFunctionUrl
+  );
+  console.log(
+    "[invokeContractsFunction] Has authorization token:",
+    !!authorization
+  );
+  console.log(
+    "[invokeContractsFunction] Request body size:",
+    requestBody.length
+  );
 
   const response = await fetch(contractsFunctionUrl, {
     method: "POST",
@@ -149,12 +169,19 @@ export async function invokeContractsFunction<Operation extends ContractsFunctio
     body: requestBody,
   });
 
-  console.log('[invokeContractsFunction] Response status:', response.status, response.statusText);
-  console.log('[invokeContractsFunction] Response headers:', Object.fromEntries(response.headers.entries()));
+  console.log(
+    "[invokeContractsFunction] Response status:",
+    response.status,
+    response.statusText
+  );
+  console.log(
+    "[invokeContractsFunction] Response headers:",
+    Object.fromEntries(response.headers.entries())
+  );
 
   if (!response.ok) {
     const errorBody = await response.text();
-    console.error('[invokeContractsFunction] Error response body:', errorBody);
+    console.error("[invokeContractsFunction] Error response body:", errorBody);
     throw new Error(
       `contractsFunction invocation failed with ${response.status} ${response.statusText}: ${errorBody}`
     );

@@ -15,7 +15,8 @@ import {
 
 type UploadInput = ContractsFunctionOperationMap["encryptAndUpload"]["input"];
 type UploadResult = ContractsFunctionOperationMap["encryptAndUpload"]["output"];
-type DownloadResult = ContractsFunctionOperationMap["decryptAndDownload"]["output"];
+type DownloadResult =
+  ContractsFunctionOperationMap["decryptAndDownload"]["output"];
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
 const MAX_FILE_NAME_LENGTH = 255;
@@ -57,7 +58,9 @@ type UploadActionInput = UploadInput & {
   description?: string | null;
 };
 
-export async function uploadExchangeFileAction(input: UploadActionInput): Promise<UploadResult> {
+export async function uploadExchangeFileAction(
+  input: UploadActionInput
+): Promise<UploadResult> {
   const { payload, description } = validateAndNormalizeUploadInput(input);
 
   const currentUser = await getCurrentUserServerSide();
@@ -146,7 +149,7 @@ export async function downloadExchangeFileAction(input: {
 
   return invokeContractsFunction({
     operation: "decryptAndDownload",
-    payload: { fileId: input.fileId },
+    payload: { fileId: input.fileId, userId: currentUserId },
   });
 }
 
@@ -214,13 +217,18 @@ function normalizeFileSize(size: number) {
   }
 
   if (numericSize > MAX_FILE_SIZE_BYTES) {
-    throw new Error(`Files are limited to ${formatFileSize(MAX_FILE_SIZE_BYTES)}.`);
+    throw new Error(
+      `Files are limited to ${formatFileSize(MAX_FILE_SIZE_BYTES)}.`
+    );
   }
 
   return Math.trunc(numericSize);
 }
 
-function ensureMimeTypeAllowed(fileType: string | null | undefined, fileName: string) {
+function ensureMimeTypeAllowed(
+  fileType: string | null | undefined,
+  fileName: string
+) {
   const normalizedType = (fileType ?? "").trim().toLowerCase();
   if (normalizedType && ALLOWED_MIME_TYPES.has(normalizedType)) {
     return;
@@ -270,7 +278,9 @@ function normalizeBase64Payload(payload: string, expectedSize: number) {
 
   if (decoded.length > MAX_FILE_SIZE_BYTES) {
     decoded.fill(0);
-    throw new Error(`Files are limited to ${formatFileSize(MAX_FILE_SIZE_BYTES)}.`);
+    throw new Error(
+      `Files are limited to ${formatFileSize(MAX_FILE_SIZE_BYTES)}.`
+    );
   }
 
   if (decoded.length !== expectedSize) {
