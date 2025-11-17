@@ -11,10 +11,14 @@ frontend:
           if [ -n "$AMPLIFY_APP_ID" ] && [ -n "$AMPLIFY_ENV_NAME" ]; then
             echo "Pulling Amplify backend configuration..."
             npx ampx pull --appId $AMPLIFY_APP_ID --envName $AMPLIFY_ENV_NAME --yes
+          elif [ -f "amplify_outputs.json" ]; then
+            echo "Using existing amplify_outputs.json from repository"
           else
-            echo "Warning: AMPLIFY_APP_ID or AMPLIFY_ENV_NAME not set. Skipping backend pull."
-            echo "Set these in Amplify Hosting console → App settings → Environment variables"
-            echo "Or create amplify_outputs.json manually and commit it to the repository."
+            echo "Error: amplify_outputs.json not found and AMPLIFY_APP_ID/AMPLIFY_ENV_NAME not set"
+            echo "Either:"
+            echo "  1. Set AMPLIFY_APP_ID and AMPLIFY_ENV_NAME in Amplify Hosting environment variables, OR"
+            echo "  2. Commit amplify_outputs.json to your repository"
+            exit 1
           fi
     build:
       commands:
