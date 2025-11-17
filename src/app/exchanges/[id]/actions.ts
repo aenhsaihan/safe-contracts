@@ -11,6 +11,8 @@ import {
   getContractExchangeById,
   getContractFileById,
   createContractFileRecord,
+  listContractFilesForExchange,
+  updateContractExchangeStatus,
 } from "@/lib/contracts-data";
 
 type UploadInput = ContractsFunctionOperationMap["encryptAndUpload"]["input"];
@@ -114,6 +116,26 @@ export async function uploadExchangeFileAction(
     encryptionContextUploaderId: result.encryptionContextUploaderId,
     encryptionContextExchangeId: result.encryptionContextExchangeId,
   });
+
+  // Check if both parties have uploaded at least one file
+  const allFiles = await listContractFilesForExchange(payload.exchangeId);
+  const partyAFileIds = allFiles
+    .filter((file) => file.ownerId === exchange.partyAId)
+    .map((file) => file.id);
+  const partyBFileIds = allFiles
+    .filter((file) => file.ownerId === exchange.partyBId)
+    .map((file) => file.id);
+
+  const bothPartiesHaveUploaded =
+    partyAFileIds.length > 0 && partyBFileIds.length > 0;
+
+  // Update status to COMPLETED only if both parties have uploaded
+  if (bothPartiesHaveUploaded && exchange.status !== "COMPLETED") {
+    await updateContractExchangeStatus({
+      id: exchange.id,
+      status: "COMPLETED",
+    });
+  }
 
   revalidatePath("/");
   revalidatePath(`/exchanges/${exchange.id}`);

@@ -34,6 +34,18 @@ export default async function ExchangeDetailPage({
     return rightDate - leftDate;
   });
 
+  const mappedFiles = files.map((file) => ({
+    id: file.id,
+    fileName: file.fileName,
+    fileSize: file.fileSize ?? 0,
+    owner: describeParticipant(file.ownerId, exchange),
+    uploader: describeParticipant(file.uploaderId, exchange),
+    uploadedAt: file.createdAt ?? file.updatedAt ?? new Date().toISOString(),
+    sha256: file.fileHash ?? undefined,
+    fileHash: file.fileHash ?? undefined,
+    ownerId: file.ownerId, // Keep ownerId for status resolution
+  }));
+
   const exchangeDetailProps = {
     exchange: {
       id: exchange.id,
@@ -42,19 +54,15 @@ export default async function ExchangeDetailPage({
       partyAId: exchange.partyAId,
       partyB: `Party B (${exchange.partyBId})`,
       partyBId: exchange.partyBId,
-      status: resolveExchangeStatus(exchange.status, files.length > 0),
+      status: resolveExchangeStatus(
+        exchange.status,
+        mappedFiles,
+        exchange.partyAId,
+        exchange.partyBId
+      ),
       createdAt: exchange.createdAt ?? new Date().toISOString(),
     },
-    files: files.map((file) => ({
-      id: file.id,
-      fileName: file.fileName,
-      fileSize: file.fileSize ?? 0,
-      owner: describeParticipant(file.ownerId, exchange),
-      uploader: describeParticipant(file.uploaderId, exchange),
-      uploadedAt: file.createdAt ?? file.updatedAt ?? new Date().toISOString(),
-      sha256: file.fileHash ?? undefined,
-      fileHash: file.fileHash ?? undefined,
-    })),
+    files: mappedFiles,
     currentUserId: currentUser?.userId ?? "",
   };
 
@@ -75,14 +83,28 @@ export default async function ExchangeDetailPage({
 
 function resolveExchangeStatus(
   status: string | null | undefined,
-  hasFiles: boolean
+  files: Array<{ ownerId: string }>,
+  partyAId: string,
+  partyBId: string
 ): "PENDING" | "COMPLETED" | "ACTION_REQUIRED" {
   if (status === "ACTION_REQUIRED") {
     return status;
   }
-  if (hasFiles) {
+  
+  // Check if both parties have uploaded at least one file
+  const partyAHasFiles = files.some((file) => file.ownerId === partyAId);
+  const partyBHasFiles = files.some((file) => file.ownerId === partyBId);
+  const bothPartiesHaveUploaded = partyAHasFiles && partyBHasFiles;
+  
+  if (bothPartiesHaveUploaded) {
     return "COMPLETED";
   }
+  
+  // If only one party has uploaded, show ACTION_REQUIRED
+  if (partyAHasFiles || partyBHasFiles) {
+    return "ACTION_REQUIRED";
+  }
+  
   return "PENDING";
 }
 

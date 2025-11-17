@@ -1,10 +1,9 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState, useTransition } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { uploadExchangeFileAction } from "@/app/exchanges/[id]/actions";
-import { markExchangeCompletedAction } from "@/app/exchanges/actions";
 
 type OwnerSelection = "PARTY_A" | "PARTY_B";
 
@@ -40,7 +39,6 @@ export default function UploadForm({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isStatusUpdating, startStatusUpdate] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [hashHex, setHashHex] = useState<string | null>(null);
   const viewerHasAccess = Boolean(viewerRole);
@@ -112,15 +110,9 @@ export default function UploadForm({
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-      startStatusUpdate(async () => {
-        try {
-          await markExchangeCompletedAction(exchangeId);
-        } catch (updateError) {
-          console.error("Failed to mark exchange as completed", updateError);
-        } finally {
-          router.refresh();
-        }
-      });
+      // Status update is now handled automatically in uploadExchangeFileAction
+      // after checking if both parties have uploaded
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed. Try again shortly.");
     } finally {
@@ -221,10 +213,10 @@ export default function UploadForm({
 
       <button
         type="submit"
-        disabled={!selectedFile || isSubmitting || isStatusUpdating}
+        disabled={!selectedFile || isSubmitting}
         className="w-full rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-sky-200"
       >
-        {isSubmitting ? "Encrypting..." : isStatusUpdating ? "Finalizing..." : "Upload with KMS envelope"}
+                {isSubmitting ? "Encrypting..." : "Upload with KMS envelope"}
       </button>
 
       {error && <p className="text-sm text-rose-600">{error}</p>}

@@ -21,6 +21,7 @@ type FileRecord = {
   fileName: string;
   fileSize: number;
   owner: string;
+  ownerId?: string; // Used for status resolution
   uploader: string;
   uploadedAt: string;
   sha256?: string;
@@ -44,9 +45,9 @@ export default function ExchangeDetail({ exchange, files, currentUserId }: Excha
       case "COMPLETED":
         return "All parties have uploaded their executed copies.";
       case "ACTION_REQUIRED":
-        return "Waiting on signatures and uploads from at least one party.";
+        return "Waiting for the other party to upload their executed copy.";
       default:
-        return "Exchange opened. Files remain encrypted until downloaded.";
+        return "Exchange opened. Upload your executed copy to begin.";
     }
   }, [exchange.status]);
 
