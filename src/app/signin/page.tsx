@@ -110,7 +110,7 @@ const components: AuthenticatorProps["components"] = {
 };
 
 type AuthenticatorRenderProps = Parameters<
-  NonNullable<AuthenticatorProps["children"]>
+  Extract<AuthenticatorProps["children"], (...args: any[]) => any>
 >[0];
 
 export default function SignInPage() {
