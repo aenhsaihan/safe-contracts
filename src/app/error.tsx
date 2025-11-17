@@ -10,8 +10,14 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to help with debugging
-    console.error("Application error:", error);
+    // Log detailed error information for debugging
+    console.error("Server Component Error:", {
+      message: error.message,
+      stack: error.stack,
+      digest: error.digest,
+      timestamp: new Date().toISOString(),
+      name: error.name,
+    });
   }, [error]);
 
   return (

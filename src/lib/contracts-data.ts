@@ -250,19 +250,42 @@ async function executeGraphQL<T>(
   query: string,
   variables?: Record<string, unknown>
 ) {
-  const dataClient = getDataClientServerSide();
-  const result = (await (dataClient as any).graphql({
-    query,
-    variables,
-  })) as GraphQLResult<T>;
+  try {
+    const dataClient = getDataClientServerSide();
+    const result = (await (dataClient as any).graphql({
+      query,
+      variables,
+    })) as GraphQLResult<T>;
 
-  if (result.errors?.length) {
-    throw new Error(result.errors.map((error) => error.message).join("; "));
+    if (result.errors?.length) {
+      const errorMessages = result.errors.map((error) => error.message).join("; ");
+      console.error("[executeGraphQL] GraphQL errors:", {
+        errors: result.errors,
+        query: query.substring(0, 100) + "...",
+        variables,
+        timestamp: new Date().toISOString(),
+      });
+      throw new Error(errorMessages);
+    }
+
+    if (!result.data) {
+      console.error("[executeGraphQL] Missing data in response:", {
+        query: query.substring(0, 100) + "...",
+        variables,
+        timestamp: new Date().toISOString(),
+      });
+      throw new Error("GraphQL response missing data.");
+    }
+
+    return result.data;
+  } catch (error) {
+    console.error("[executeGraphQL] Exception:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      query: query.substring(0, 100) + "...",
+      variables,
+      timestamp: new Date().toISOString(),
+    });
+    throw error;
   }
-
-  if (!result.data) {
-    throw new Error("GraphQL response missing data.");
-  }
-
-  return result.data;
 }
