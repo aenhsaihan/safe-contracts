@@ -1,0 +1,21 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci --legacy-peer-deps
+        # Pull Amplify backend configuration (if backend is deployed)
+        # Uncomment and set your app ID and environment name:
+        # - npx ampx pull --appId <your-app-id> --envName <env-name> --yes
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*
+
