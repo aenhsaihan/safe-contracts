@@ -1,8 +1,8 @@
 import { defineBackend } from '@aws-amplify/backend';
 import { Stack } from 'aws-cdk-lib';
-import { FunctionUrlAuthType, CfnUrl } from 'aws-cdk-lib/aws-lambda';
+import { FunctionUrlAuthType, CfnUrl, CfnPermission } from 'aws-cdk-lib/aws-lambda';
 import { CfnFunction } from 'aws-cdk-lib/aws-lambda';
-import { AnyPrincipal, PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { AnyPrincipal } from 'aws-cdk-lib/aws-iam';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { defineStorage } from './storage/resource';
@@ -75,18 +75,21 @@ cfnUrl.addPropertyOverride('AuthType', 'NONE');
 
 // Grant invoke permissions to all principals (since auth is handled by Lambda code)
 // AWS requires both lambda:InvokeFunctionUrl and lambda:InvokeFunction permissions
-// For FunctionUrlAuthType.NONE, both permissions need the functionUrlAuthType condition
+// functionUrlAuthType is only valid for lambda:InvokeFunctionUrl action
 lambdaFunction.addPermission('AllowPublicInvokeURL', {
   principal: new AnyPrincipal(),
   action: 'lambda:InvokeFunctionUrl',
   functionUrlAuthType: FunctionUrlAuthType.NONE,
 });
 
-// Second permission for lambda:InvokeFunction - also needs functionUrlAuthType condition
-lambdaFunction.addPermission('AllowPublicInvokeFunction', {
-  principal: new AnyPrincipal(),
+// Second permission for lambda:InvokeFunction
+// Note: CfnPermission doesn't support adding conditions directly
+// We'll add the permission without condition, then manually add the condition via console or AWS CLI
+// The condition StringEquals: lambda:InvokedViaFunctionUrl = true needs to be added manually
+new CfnPermission(stack, 'AllowPublicInvokeFunction', {
+  functionName: lambdaFunction.functionName,
+  principal: '*',
   action: 'lambda:InvokeFunction',
-  functionUrlAuthType: FunctionUrlAuthType.NONE,
 });
 
 // Export the function URL to custom outputs so it's available in amplify_outputs.json

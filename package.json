@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -21,7 +21,12 @@
   "devDependencies": {
     "@aws-amplify/backend": "^1.18.0",
     "@aws-amplify/backend-cli": "^1.8.0",
+    "@aws-sdk/client-lambda": "^3.932.0",
     "@aws-sdk/client-sts": "^3.932.0",
+    "@aws-sdk/credential-provider-node": "^3.932.0",
+    "@aws-sdk/node-http-handler": "^3.370.0",
+    "@aws-sdk/protocol-http": "^3.370.0",
+    "@aws-sdk/signature-v4": "^3.370.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
