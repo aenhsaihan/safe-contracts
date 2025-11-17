@@ -4,16 +4,17 @@ import { getCurrentUserServerSide, invokeContractsFunction } from "@/lib/amplify
 import { getContractExchangeById, getContractFileById } from "@/lib/contracts-data";
 
 type RouteContext = {
-  params: {
+  params: Promise<{
     id: string;
     fileId: string;
-  };
+  }>;
 };
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const exchangeId = context.params.id;
-    const fileId = context.params.fileId;
+    const params = await context.params;
+    const exchangeId = params.id;
+    const fileId = params.fileId;
 
     const currentUser = await getCurrentUserServerSide();
     const currentUserId = currentUser?.userId;
