@@ -1,0 +1,43 @@
+{
+  "version": "1.4",
+  "aws_project_region": "ap-southeast-2",
+  "aws_user_pools_id": "ap-southeast-2_fRmaieSLe",
+  "aws_user_pools_web_client_id": "2t4vc8odv54p96ciluhj5bcv4s",
+  "aws_cognito_region": "ap-southeast-2",
+  "aws_appsync_graphqlEndpoint": "https://2eqvg2d63fgkbprs4gql66vea4.appsync-api.ap-southeast-2.amazonaws.com/graphql",
+  "aws_appsync_region": "ap-southeast-2",
+  "aws_appsync_authenticationType": "AMAZON_COGNITO_USER_POOLS",
+  "aws_appsync_apiId": "2eqvg2d63fgkbprs4gql66vea4",
+  "Auth": {
+    "Cognito": {
+      "userPoolId": "ap-southeast-2_fRmaieSLe",
+      "userPoolClientId": "2t4vc8odv54p96ciluhj5bcv4s"
+    }
+  },
+  "auth": {
+    "userPoolId": "ap-southeast-2_fRmaieSLe",
+    "webClientId": "2t4vc8odv54p96ciluhj5bcv4s",
+    "userPoolArn": "arn:aws:cognito-idp:ap-southeast-2:230399361519:userpool/ap-southeast-2_fRmaieSLe",
+    "aws_region": "ap-southeast-2",
+    "aws_cognito_region": "ap-southeast-2",
+    "aws_user_pools_id": "ap-southeast-2_fRmaieSLe",
+    "aws_user_pools_web_client_id": "2t4vc8odv54p96ciluhj5bcv4s"
+  },
+  "GraphQL": {
+    "endpoint": "https://2eqvg2d63fgkbprs4gql66vea4.appsync-api.ap-southeast-2.amazonaws.com/graphql",
+    "region": "ap-southeast-2",
+    "apiKey": null,
+    "defaultAuthorizationType": "AMAZON_COGNITO_USER_POOLS"
+  },
+  "data": {
+    "aws_appsync_graphqlEndpoint": "https://2eqvg2d63fgkbprs4gql66vea4.appsync-api.ap-southeast-2.amazonaws.com/graphql",
+    "aws_appsync_region": "ap-southeast-2",
+    "aws_appsync_authenticationType": "AMAZON_COGNITO_USER_POOLS",
+    "aws_appsync_apiKey": null,
+    "aws_appsync_apiId": "2eqvg2d63fgkbprs4gql66vea4"
+  },
+  "custom": {
+    "aws_region": "ap-southeast-2",
+    "contractsFunctionUrl": "https://iwdij7xcaejaoijot6ikzrxpau0dgijg.lambda-url.ap-southeast-2.on.aws/"
+  }
+}
