@@ -9,9 +9,21 @@ import {
 type ExchangeRecord = ContractExchangeRecord;
 
 export default async function DashboardPage() {
-  const currentUser = await getCurrentUserServerSide();
-  const userId = currentUser?.userId ?? null;
-  const exchanges = userId ? await fetchExchangesForUser(userId) : [];
+  let currentUser;
+  let userId: string | null = null;
+  let exchanges: ExchangeRecord[] = [];
+
+  try {
+    currentUser = await getCurrentUserServerSide();
+    userId = currentUser?.userId ?? null;
+    if (userId) {
+      exchanges = await fetchExchangesForUser(userId);
+    }
+  } catch (error) {
+    console.error("[DashboardPage] Error loading data:", error);
+    // Continue rendering with empty state rather than crashing
+    // This allows the page to load even if auth/data fails
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white py-10">
