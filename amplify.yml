@@ -3,7 +3,7 @@ frontend:
   phases:
     preBuild:
       commands:
-        - npm ci --legacy-peer-deps
+        - npm install --legacy-peer-deps
         # Pull Amplify backend configuration (if backend is deployed)
         # Uncomment and set your app ID and environment name:
         # - npx ampx pull --appId <your-app-id> --envName <env-name> --yes
