@@ -44,3 +44,15 @@ next-env.d.ts
 .amplify
 # amplify_outputs*  # Commented out to allow amplify_outputs.json for deployment
 amplifyconfiguration*
+amplify/amplify_outputs.json
+
+# debugging and helper scripts (temporary troubleshooting files)
+AMAZON_Q_*.md
+AMPLIFY_*.md
+BLOCKER_*.md
+CHECK_*.md
+CREATE_*.md
+DEPLOYMENT_*.md
+*.js
+*.sh
+policy-template.json
