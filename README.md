@@ -1,5 +1,7 @@
 ## SafeContracts
 
+<!-- Deployment trigger: Restored to working commit 6335e9c -->
+
 SafeContracts is a Next.js + AWS Amplify application that lets two parties exchange contracts that are stored with envelope encryption. The frontend is rendered with the App Router (React Server Components) and the backend stack is provisioned with Amplify Gen 2 (auth, data, storage, Lambda, and KMS).
 
 ---
