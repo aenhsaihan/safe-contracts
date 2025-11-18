@@ -8,7 +8,7 @@ frontend:
         # Note: When Amplify Hosting detects an amplify/ folder, it should automatically
         # deploy the backend and generate amplify_outputs.json. If it doesn't exist,
         # you may need to commit it to the repository.
-        - test -f amplify_outputs.json && echo "✓ Found amplify_outputs.json" || echo "⚠ Warning: amplify_outputs.json not found (build will continue)"
+        - 'test -f amplify_outputs.json && echo "✓ Found amplify_outputs.json" || echo "⚠ Warning - amplify_outputs.json not found (build will continue)"'
     build:
       commands:
         - npm run build
