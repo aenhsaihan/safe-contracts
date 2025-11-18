@@ -53,6 +53,11 @@ BLOCKER_*.md
 CHECK_*.md
 CREATE_*.md
 DEPLOYMENT_*.md
-*.js
-*.sh
+add-*.js
+apply-*.js
+create-*.js
+deploy-*.sh
+final-*.js
+fix-*.js
+generate-*.js
 policy-template.json
