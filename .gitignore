@@ -54,6 +54,7 @@ CHECK_*.md
 CREATE_*.md
 DEPLOYMENT_*.md
 add-*.js
+add-*.sh
 apply-*.js
 create-*.js
 deploy-*.sh
